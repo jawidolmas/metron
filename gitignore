@@ -1,0 +1,29 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Secrets. Never commit these.
+.env
+.env.*
+*.pem
+*.key
+service-role*
+*service_role*
+
+# Local / tooling
+node_modules/
+*.log
+.supabase/
+supabase/.temp/
+.claude/
+
+# Local-only notes and backups
+*.local
+*.bak
+*.csv

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14202b">
+<title>Metron</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<section id="auth" hidden>
+  <form id="login">
+    <h1>Metron</h1>
+    <p>Sign in to see your spending.</p>
+    <input id="email" type="email" placeholder="Email" autocomplete="username" required>
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
+    <button class="primary">Sign in</button>
+    <p id="auth-err" class="err"></p>
+  </form>
+</section>
+
+<main id="app" hidden>
+  <header><h1>Metron</h1><button id="signout" class="ghost">Sign out</button></header>
+
+  <section class="view" id="v-overview">
+    <div class="hero">
+      <span class="lbl">Left this period</span>
+      <strong id="left">0</strong>
+      <div class="bar"><i id="bar"></i></div>
+      <span id="warn" class="warn"></span>
+    </div>
+    <div class="stats">
+      <div><span class="lbl">Today</span><b id="today">0</b></div>
+      <div><span class="lbl">This week</span><b id="week">0</b></div>
+      <div><span class="lbl">Spent</span><b id="spent">0</b></div>
+      <div><span class="lbl">Income</span><b id="income">0</b></div>
+    </div>
+    <h2>Recent</h2>
+    <ul id="recent" class="list"></ul>
+    <h2>Budget</h2>
+    <form id="settings" class="inline">
+      <label>Monthly budget<input id="budget" inputmode="decimal" placeholder="8500"></label>
+      <label>Starts on day<input id="startday" type="number" min="1" max="28" value="1"></label>
+      <button class="primary">Save budget</button>
+    </form>
+  </section>
+
+  <section class="view" id="v-add" hidden>
+    <form id="add">
+      <div class="seg">
+        <button type="button" data-type="expense" class="on">Expense</button>
+        <button type="button" data-type="income">Income</button>
+      </div>
+      <input id="amount" inputmode="decimal" placeholder="0.00" class="big" autocomplete="off">
+      <input id="desc" placeholder="What was it?" autocomplete="off">
+      <div id="cats" class="chips"></div>
+      <details>
+        <summary>More details</summary>
+        <select id="pay">
+          <option value="">Payment method</option>
+          <option>Cash</option><option>Debit Card</option><option>Credit Card</option>
+          <option>Bank Transfer</option><option>Other</option>
+        </select>
+        <div id="ptype-wrap">
+          <select id="ptype">
+            <option value="">Need, want or impulse?</option>
+            <option value="need">Need</option><option value="want">Want</option><option value="impulse">Impulse</option>
+          </select>
+        </div>
+        <input id="reason" placeholder="Why did you buy it?">
+        <input id="when" type="datetime-local">
+      </details>
+      <button id="save" class="primary">Save expense</button>
+      <button id="cancel" type="button" class="ghost" hidden>Cancel edit</button>
+    </form>
+  </section>
+
+  <section class="view" id="v-history" hidden>
+    <input id="q" type="search" placeholder="Search description">
+    <div class="filters">
+      <select id="fcat"><option value="">All categories</option></select>
+      <select id="ftype"><option value="">All types</option><option value="expense">Expenses</option><option value="income">Income</option></select>
+      <input id="ffrom" type="date" aria-label="From date">
+      <input id="fto" type="date" aria-label="To date">
+    </div>
+    <div id="hist"></div>
+  </section>
+
+  <section class="view" id="v-stats" hidden>
+    <div class="segs">
+      <button data-days="7">7 days</button>
+      <button data-days="30" class="on">30 days</button>
+      <button data-days="0">Budget period</button>
+    </div>
+    <div class="stats">
+      <div><span class="lbl">Average per day</span><b id="avg">0</b></div>
+      <div><span class="lbl">Total spent</span><b id="tot">0</b></div>
+      <div><span class="lbl">Top category</span><b id="topcat">None</b></div>
+      <div><span class="lbl">Top day</span><b id="topday">None</b></div>
+    </div>
+    <h2>Spent per day</h2>
+    <div class="chart"><canvas id="c-day"></canvas></div>
+    <h2>By category</h2>
+    <div class="chart tall"><canvas id="c-cat"></canvas></div>
+    <h2>Need, want, impulse</h2>
+    <ul id="ptypes" class="list"></ul>
+  </section>
+
+  <nav>
+    <button data-v="overview" class="on">Overview</button>
+    <button data-v="add">Add</button>
+    <button data-v="history">History</button>
+    <button data-v="stats">Stats</button>
+  </nav>
+</main>
+
+<div id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
