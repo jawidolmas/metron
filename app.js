@@ -2,8 +2,17 @@
   const $ = s => document.querySelector(s);
   const CATS = ['Food & Groceries', 'Coffee & Drinks', 'Transportation', 'Education', 'Personal Care',
     'Shopping', 'Social & Entertainment', 'Subscriptions', 'Health & Fitness', 'Other'];
-  const S = { tx: [], budget: 0, startDay: 1, currency: 'TRY', type: 'expense', cat: CATS[0], busy: false, user: null, editId: null, range: 30 };
+  const VISIBLE_CATS = 6;
+  const S = { tx: [], budget: 0, startDay: 1, currency: 'TRY', type: 'expense', cat: CATS[0], busy: false,
+    user: null, editId: null, range: 30, view: 'overview', order: CATS.slice(), allCats: false, whenTouched: false };
   const charts = {};
+  const wide = window.matchMedia('(min-width: 1100px)');
+
+  // Small remembered choices (last category, last payment method). Fails safe if storage is blocked.
+  const mem = {
+    get(k) { try { return localStorage.getItem('metron.' + k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem('metron.' + k, v); } catch { /* ignore */ } }
+  };
 
   // Money is summed in integer cents. No rounded intermediate totals.
   const cents = n => Math.round(Number(n) * 100);
@@ -21,22 +30,35 @@
     t.textContent = msg;
     t.className = bad ? 'bad show' : 'show';
     clearTimeout(toast.t);
-    toast.t = setTimeout(() => { t.className = ''; }, 3000);
+    toast.t = setTimeout(() => { t.className = ''; }, 2500);
   }
 
+  // ---------- Views ----------
+  // Mobile: one view at a time (Add is its own tab).
+  // Desktop: the Add panel is always visible beside the content.
   function show(view) {
-    document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== 'v-' + view; });
+    if (view === 'add' && wide.matches) { $('#amount').focus(); return; }
+    S.view = view;
+    document.querySelectorAll('.view').forEach(v => {
+      v.hidden = v.id === 'v-add' ? (!wide.matches && view !== 'add') : v.id !== 'v-' + view;
+    });
     document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === view));
-    if (view === 'add') $('#amount').focus();
+    if (view === 'add') { refreshWhen(); $('#amount').focus(); }
     if (view === 'stats') renderStats();
   }
+  wide.addEventListener('change', () => { if (S.user) show(S.view === 'add' ? 'overview' : S.view); });
 
   // ---------- Auth ----------
   async function route(session) {
     S.user = session ? session.user : null;
     $('#auth').hidden = !!S.user;
     $('#app').hidden = !S.user;
-    if (S.user) { await loadAll(); show('overview'); }
+    if (S.user) {
+      saveProfile();
+      await loadAll();
+      show('overview');
+      if (wide.matches) $('#amount').focus();
+    }
   }
 
   $('#login').addEventListener('submit', async e => {
@@ -54,6 +76,27 @@
 
   $('#signout').addEventListener('click', async () => { await sb.auth.signOut(); route(null); });
 
+  $('#google').addEventListener('click', async () => {
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: location.origin + location.pathname }
+    });
+    if (error) $('#auth-err').textContent = error.message;
+  });
+
+  async function saveProfile() {
+    const m = S.user.user_metadata || {};
+    const name = m.full_name || m.name || '';
+    $('#who').textContent = name;
+    const { error } = await sb.from('profiles').upsert({
+      user_id: S.user.id,
+      full_name: name || null,
+      avatar_url: m.avatar_url || null,
+      updated_at: new Date().toISOString()
+    });
+    if (error) console.warn('Profile not saved:', error.message);
+  }
+
   // ---------- Data ----------
   async function loadAll() {
     const [t, s] = await Promise.all([
@@ -69,6 +112,7 @@
       $('#budget').value = s.data.monthly_budget;
       $('#startday').value = s.data.budget_start_day;
     }
+    sortCategories();
     render();
   }
 
@@ -85,7 +129,8 @@
     const l = el('div', 'l');
     const when = new Date(t.transaction_date).toLocaleString('en-GB',
       { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-    l.append(el('b', '', t.description), el('span', '', t.category + ', ' + when));
+    const sub = (t.description === t.category ? '' : t.category + ', ') + when;
+    l.append(el('b', '', t.description), el('span', '', sub));
     const out = t.type === 'expense';
     r.append(l, el('span', 'amt ' + (out ? 'out' : 'in'), (out ? '-' : '+') + money(cents(t.amount))));
     if (withDelete) {
@@ -134,7 +179,7 @@
 
     const rec = $('#recent');
     rec.replaceChildren();
-    if (!S.tx.length) rec.append(el('li', 'row empty', 'No transactions yet. Tap Add.'));
+    if (!S.tx.length) rec.append(el('li', 'row empty', 'No transactions yet. Type an amount to start.'));
     S.tx.slice(0, 5).forEach(t => rec.append(row(t, false)));
     renderHistory();
   }
@@ -148,7 +193,8 @@
     const to = $('#fto').value ? new Date($('#fto').value + 'T23:59:59.999') : null;
     const list = S.tx.filter(t => {
       const d = new Date(t.transaction_date);
-      return t.description.toLowerCase().includes(q) && (!fc || t.category === fc) &&
+      const hay = (t.description + ' ' + t.category).toLowerCase();
+      return hay.includes(q) && (!fc || t.category === fc) &&
         (!ft || t.type === ft) && (!from || d >= from) && (!to || d <= to);
     });
     if (!list.length) {
@@ -172,59 +218,135 @@
     }
   }
 
-  // ---------- Add form ----------
+  // ---------- Add form: categories ----------
+  // Most used categories come first, so the usual one is one tap away.
+  function sortCategories() {
+    const n = Object.fromEntries(CATS.map(c => [c, 0]));
+    S.tx.forEach(t => { if (t.type === 'expense' && t.category in n) n[t.category]++; });
+    S.order = CATS.slice().sort((a, b) => n[b] - n[a] || CATS.indexOf(a) - CATS.indexOf(b));
+    const saved = mem.get('cat');
+    if (!S.editId) S.cat = CATS.includes(saved) ? saved : S.order[0];
+    renderChips();
+  }
+
   function renderChips() {
     const box = $('#cats');
     box.replaceChildren();
-    CATS.forEach(c => {
+    let list = S.allCats ? S.order : S.order.slice(0, VISIBLE_CATS);
+    if (!list.includes(S.cat)) list = list.concat(S.cat);
+    list.forEach(c => {
       const b = el('button', c === S.cat ? 'on' : '', c);
       b.type = 'button';
+      b.setAttribute('aria-pressed', c === S.cat);
       b.addEventListener('click', () => { S.cat = c; renderChips(); });
       box.append(b);
     });
+    if (S.order.length > VISIBLE_CATS) {
+      const m = el('button', 'more', S.allCats ? 'Less' : 'More');
+      m.type = 'button';
+      m.addEventListener('click', () => { S.allCats = !S.allCats; renderChips(); });
+      box.append(m);
+    }
   }
 
-  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
-    S.type = b.dataset.type;
-    document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
-    const exp = S.type === 'expense';
+  // ---------- Add form: type ----------
+  function setType(type) {
+    S.type = type;
+    document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x.dataset.type === type));
+    const exp = type === 'expense';
     $('#cats').hidden = !exp;
     $('#ptype-wrap').hidden = !exp;
     setSaveLabel();
+  }
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    setType(b.dataset.type);
+    $('#amount').focus();
   }));
 
+  // ---------- Add form: date and time ----------
+  // Untouched: the entry uses the exact moment of saving. Touched: it uses the chosen value.
+  const toLocal = d => {
+    const x = new Date(d);
+    x.setMinutes(x.getMinutes() - x.getTimezoneOffset());
+    return x.toISOString().slice(0, 16);
+  };
+  function whenText(d) {
+    const t = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const a = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const b = new Date(); b.setHours(0, 0, 0, 0);
+    const diff = Math.round((b.getTime() - a) / 864e5);
+    if (diff === 0) return 'Today, ' + t;
+    if (diff === 1) return 'Yesterday, ' + t;
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + t;
+  }
+  function refreshWhen() {
+    const v = $('#when').value;
+    const d = S.whenTouched && v ? new Date(v) : new Date();
+    $('#when-label').textContent = whenText(d);
+  }
+  function openWhen(open) {
+    $('#when-box').hidden = !open;
+    $('#when-chip').setAttribute('aria-expanded', open);
+  }
+  $('#when-chip').addEventListener('click', () => {
+    const open = $('#when-box').hidden;
+    if (open && !$('#when').value) $('#when').value = toLocal(new Date());
+    openWhen(open);
+  });
+  $('#when').addEventListener('input', () => {
+    S.whenTouched = !!$('#when').value;
+    refreshWhen();
+  });
+  $('#when-now').addEventListener('click', () => {
+    S.whenTouched = false;
+    $('#when').value = '';
+    openWhen(false);
+    refreshWhen();
+  });
+  setInterval(() => { if (!S.whenTouched) refreshWhen(); }, 30000);
+
+  // ---------- Add form: save ----------
   $('#add').addEventListener('submit', async e => {
     e.preventDefault();
     if (S.busy) return;
     const amt = parseFloat($('#amount').value.replace(',', '.'));
-    const desc = $('#desc').value.trim();
-    if (!isFinite(amt) || amt <= 0) return toast('Enter an amount above 0.', true);
-    if (!desc) return toast('Add a description.', true);
+    if (!isFinite(amt) || amt <= 0) { $('#amount').focus(); return toast('Enter an amount above 0.', true); }
     const exp = S.type === 'expense';
     const rec = {
       type: S.type,
       amount: Math.round(amt * 100) / 100,
-      description: desc,
+      description: $('#desc').value.trim() || (exp ? S.cat : 'Income'),
       category: exp ? S.cat : 'Income',
       payment_method: $('#pay').value || null,
       reason: $('#reason').value.trim() || null,
       purchase_type: exp ? ($('#ptype').value || null) : null
     };
-    const when = $('#when').value;
-    if (when) rec.transaction_date = new Date(when).toISOString();
+    if (S.whenTouched && $('#when').value) rec.transaction_date = new Date($('#when').value).toISOString();
+    else if (S.editId) rec.transaction_date = new Date().toISOString();
 
     S.busy = true;
     $('#save').disabled = true;
     const wasEdit = !!S.editId;
-    const req = wasEdit ? sb.from('transactions').update(rec).eq('id', S.editId) : sb.from('transactions').insert(rec);
-    const { error } = await req;
+    let error;
+    if (wasEdit) {
+      ({ error } = await sb.from('transactions').update(rec).eq('id', S.editId));
+    } else {
+      const r = await sb.from('transactions').insert(rec).select().single();
+      error = r.error;
+      if (!error && r.data) {
+        S.tx.unshift(r.data);
+        S.tx.sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date));
+      }
+    }
     S.busy = false;
     $('#save').disabled = false;
     if (error) return toast('Not saved: ' + error.message, true);
+
+    if (exp) { mem.set('cat', S.cat); if (rec.payment_method) mem.set('pay', rec.payment_method); }
     resetEdit();
     toast(wasEdit ? 'Updated.' : 'Saved.');
-    await loadAll();
-    show('overview');
+    if (wasEdit) await loadAll(); else render();
+    if (wide.matches) $('#amount').focus(); else show('overview');
   });
 
   // ---------- Settings ----------
@@ -242,43 +364,58 @@
     loadAll();
   });
 
-  // ---------- Nav / search ----------
+  // ---------- Nav / search / shortcut ----------
   document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.v === 'add') resetEdit();
     show(b.dataset.v);
   }));
   $('#q').addEventListener('input', renderHistory);
+  // Press N anywhere to jump to a new entry.
+  document.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() !== 'n' || e.metaKey || e.ctrlKey || e.altKey || !S.user) return;
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+    e.preventDefault();
+    if (!S.editId) show('add'); else $('#amount').focus();
+  });
 
   // ---------- Edit ----------
   function setSaveLabel() {
     $('#save').textContent = (S.editId ? 'Update ' : 'Save ') + (S.type === 'expense' ? 'expense' : 'income');
+    $('#add-title').textContent = S.editId ? 'Edit entry' : 'New entry';
   }
   function resetEdit() {
     S.editId = null;
     $('#add').reset();
+    $('#more').open = false;
+    S.whenTouched = false;
+    openWhen(false);
+    refreshWhen();
+    const pay = mem.get('pay');
+    if (pay) $('#pay').value = pay;
+    const saved = mem.get('cat');
+    if (CATS.includes(saved)) S.cat = saved;
     $('#cancel').hidden = true;
-    setSaveLabel();
+    setType('expense');
+    renderChips();
   }
-  const toLocal = iso => {
-    const d = new Date(iso);
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
-  };
   function startEdit(t) {
-    document.querySelector('.seg button[data-type="' + t.type + '"]').click();
+    setType(t.type);
     $('#amount').value = t.amount;
-    $('#desc').value = t.description;
+    $('#desc').value = t.description === t.category ? '' : t.description;
     if (CATS.includes(t.category)) { S.cat = t.category; renderChips(); }
     $('#pay').value = t.payment_method || '';
     $('#ptype').value = t.purchase_type || '';
     $('#reason').value = t.reason || '';
+    $('#more').open = !!(t.payment_method || t.purchase_type || t.reason);
     $('#when').value = toLocal(t.transaction_date);
+    S.whenTouched = true;
+    refreshWhen();
     S.editId = t.id;
     $('#cancel').hidden = false;
     setSaveLabel();
     show('add');
   }
-  $('#cancel').addEventListener('click', () => { resetEdit(); show('history'); });
+  $('#cancel').addEventListener('click', () => { resetEdit(); show(wide.matches ? S.view : 'history'); });
 
   // ---------- Filters ----------
   CATS.concat('Income').forEach(c => { const o = el('option', '', c); o.value = c; $('#fcat').append(o); });
@@ -330,11 +467,11 @@
       labels.push(d.getDate() + '/' + (d.getMonth() + 1));
       vals.push((byDay.get(dayKey(d)) || 0) / 100);
     }
-    draw('c-day', { type: 'bar', data: { labels, datasets: [{ data: vals, backgroundColor: accent }] },
+    draw('c-day', { type: 'bar', data: { labels, datasets: [{ data: vals, backgroundColor: accent, borderRadius: 6 }] },
       options: { ...base, scales: { x: { ticks: { color: mute, maxTicksLimit: 8 }, grid: { display: false } },
         y: { beginAtZero: true, ticks: { color: mute }, grid: { color: line } } } } });
     const cats = [...byCat.entries()].sort((a, b) => b[1] - a[1]);
-    draw('c-cat', { type: 'bar', data: { labels: cats.map(c => c[0]), datasets: [{ data: cats.map(c => c[1] / 100), backgroundColor: accent }] },
+    draw('c-cat', { type: 'bar', data: { labels: cats.map(c => c[0]), datasets: [{ data: cats.map(c => c[1] / 100), backgroundColor: accent, borderRadius: 6 }] },
       options: { ...base, indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { color: mute }, grid: { color: line } },
         y: { ticks: { color: mute }, grid: { display: false } } } } });
 
@@ -354,5 +491,6 @@
   }));
 
   renderChips();
+  refreshWhen();
   sb.auth.getSession().then(({ data }) => route(data.session));
 })();
