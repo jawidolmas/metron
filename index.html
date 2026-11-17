@@ -17,6 +17,7 @@
   <symbol id="i-plus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></symbol>
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></symbol>
   <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
 </svg>
 
@@ -26,14 +27,10 @@
     <h1>Know where your <em>money</em> goes.</h1>
     <p class="sub">A calm, private way to record every expense.</p>
   </div>
-  <form id="login">
+  <div id="login">
     <button id="google" type="button" class="primary">Continue with Google</button>
-    <p class="or">or use email</p>
-    <input id="email" type="email" placeholder="Email" autocomplete="username" required>
-    <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
-    <button class="soft">Sign in</button>
     <p id="auth-err" class="err"></p>
-  </form>
+  </div>
 </section>
 
 <main id="app" hidden>
@@ -47,16 +44,24 @@
     <button data-v="add"><svg class="ico"><use href="#i-plus"/></svg><span>Add</span></button>
     <button data-v="history"><svg class="ico"><use href="#i-list"/></svg><span>History</span></button>
     <button data-v="stats"><svg class="ico"><use href="#i-chart"/></svg><span>Stats</span></button>
+    <button data-v="settings"><svg class="ico"><use href="#i-sliders"/></svg><span>Settings</span></button>
   </nav>
 
   <div class="content">
     <section class="view" id="v-overview">
       <h2 class="title">Overview</h2>
+      <div id="alerts"></div>
       <div class="hero">
         <span class="lbl">Left this period</span>
         <strong id="left">0</strong>
         <div class="bar"><i id="bar"></i></div>
         <span id="warn" class="warn"></span>
+      </div>
+      <div class="hero week" id="wcard" hidden>
+        <span class="lbl">Left this week</span>
+        <strong id="wleft">0</strong>
+        <div class="bar"><i id="wbar"></i></div>
+        <span id="wwarn" class="warn"></span>
       </div>
       <div class="stats">
         <div><span class="lbl">Today</span><b id="today">0</b></div>
@@ -70,12 +75,8 @@
           <ul id="recent" class="list"></ul>
         </div>
         <div>
-          <h2>Budget</h2>
-          <form id="settings" class="inline">
-            <label>Monthly budget<input id="budget" inputmode="decimal" placeholder="8500"></label>
-            <label>Starts on day<input id="startday" type="number" min="1" max="28" value="1"></label>
-            <button class="primary">Save budget</button>
-          </form>
+          <h2>Upcoming</h2>
+          <ul id="upcoming" class="list"></ul>
         </div>
       </div>
     </section>
@@ -90,6 +91,50 @@
         <input id="fto" type="date" aria-label="To date">
       </div>
       <div id="hist"></div>
+    </section>
+
+    <section class="view" id="v-detail" hidden>
+      <button id="back" type="button" class="ghost back">&#8249; Back</button>
+      <h2 class="title">Details</h2>
+      <div id="detail"></div>
+    </section>
+
+    <section class="view" id="v-settings" hidden>
+      <h2 class="title">Settings</h2>
+
+      <h2>Budget</h2>
+      <form id="settings" class="inline">
+        <label>Monthly budget<input id="budget" inputmode="decimal" placeholder="8500"></label>
+        <label>Weekly budget<input id="weekly" inputmode="decimal" placeholder="2000"></label>
+        <label>Budget starts on day<input id="startday" type="number" min="1" max="28" value="1"></label>
+        <label>Warn me when I reach
+          <select id="alert">
+            <option value="50">50% of budget</option><option value="60">60% of budget</option>
+            <option value="70">70% of budget</option><option value="75">75% of budget</option>
+            <option value="80" selected>80% of budget</option><option value="85">85% of budget</option>
+            <option value="90">90% of budget</option><option value="95">95% of budget</option>
+          </select>
+        </label>
+        <button class="primary">Save budget</button>
+      </form>
+
+      <h2>Fixed costs</h2>
+      <div class="stats">
+        <div><span class="lbl">Per month</span><b id="fx-total">0</b></div>
+        <div><span class="lbl">Next renewal</span><b id="fx-next">None</b></div>
+      </div>
+      <ul id="fixed" class="list" style="margin-top:12px"></ul>
+
+      <h2 id="fx-title">Add fixed cost</h2>
+      <form id="fx" class="inline" autocomplete="off">
+        <div id="svc" class="svcs" role="group" aria-label="Service"></div>
+        <label>Name<input id="fx-name" placeholder="Spotify"></label>
+        <label>Amount per month<input id="fx-amount" inputmode="decimal" placeholder="0.00"></label>
+        <label>Renews on day of month<input id="fx-day" type="number" min="1" max="31" value="1"></label>
+        <button id="fx-save" class="primary">Add fixed cost</button>
+        <button id="fx-cancel" type="button" class="ghost" hidden>Cancel</button>
+        <button id="fx-del" type="button" class="danger" hidden>Delete</button>
+      </form>
     </section>
 
     <section class="view" id="v-stats" hidden>

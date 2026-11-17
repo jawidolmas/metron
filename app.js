@@ -3,7 +3,7 @@
   const CATS = ['Food & Groceries', 'Coffee & Drinks', 'Transportation', 'Education', 'Personal Care',
     'Shopping', 'Social & Entertainment', 'Subscriptions', 'Health & Fitness', 'Other'];
   const VISIBLE_CATS = 6;
-  const S = { tx: [], budget: 0, startDay: 1, currency: 'TRY', type: 'expense', cat: CATS[0], busy: false,
+  const S = { tx: [], budget: 0, weekly: 0, alert: 80, fixed: [], startDay: 1, detailId: null, prev: 'history', pushed: false, currency: 'TRY', type: 'expense', cat: CATS[0], busy: false,
     user: null, editId: null, range: 30, view: 'overview', order: CATS.slice(), allCats: false, whenTouched: false };
   const charts = {};
   const wide = window.matchMedia('(min-width: 1100px)');
@@ -25,12 +25,12 @@
     return e;
   }
 
-  function toast(msg, bad) {
+  function toast(msg, bad, ms) {
     const t = $('#toast');
     t.textContent = msg;
     t.className = bad ? 'bad show' : 'show';
     clearTimeout(toast.t);
-    toast.t = setTimeout(() => { t.className = ''; }, 2500);
+    toast.t = setTimeout(() => { t.className = ''; }, ms || 2500);
   }
 
   // ---------- Views ----------
@@ -42,10 +42,30 @@
     document.querySelectorAll('.view').forEach(v => {
       v.hidden = v.id === 'v-add' ? (!wide.matches && view !== 'add') : v.id !== 'v-' + view;
     });
-    document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === view));
+    const navView = view === 'detail' ? S.prev : view;
+    document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === navView));
     if (view === 'add') { refreshWhen(); $('#amount').focus(); }
     if (view === 'stats') renderStats();
+    if (view === 'detail') {
+      renderDetail();
+      window.scrollTo(0, 0);
+      $('.content').scrollTop = 0;
+    }
   }
+  function openDetail(id) {
+    S.detailId = id;
+    if (!['detail', 'add'].includes(S.view)) S.prev = S.view;
+    if (!S.pushed) { history.pushState({ metron: 'detail' }, ''); S.pushed = true; }
+    show('detail');
+  }
+  function goBack() {
+    if (S.pushed) history.back(); else show(S.prev);
+  }
+  window.addEventListener('popstate', () => {
+    S.pushed = false;
+    if (S.user && S.view === 'detail') show(S.prev);
+  });
+  $('#back').addEventListener('click', goBack);
   wide.addEventListener('change', () => { if (S.user) show(S.view === 'add' ? 'overview' : S.view); });
 
   // ---------- Auth ----------
@@ -60,19 +80,6 @@
       if (wide.matches) $('#amount').focus();
     }
   }
-
-  $('#login').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn = e.submitter;
-    btn.disabled = true;
-    const { data, error } = await sb.auth.signInWithPassword({
-      email: $('#email').value.trim(), password: $('#password').value
-    });
-    btn.disabled = false;
-    if (error) { $('#auth-err').textContent = error.message; return; }
-    $('#auth-err').textContent = '';
-    route(data.session);
-  });
 
   $('#signout').addEventListener('click', async () => { await sb.auth.signOut(); route(null); });
 
@@ -99,17 +106,24 @@
 
   // ---------- Data ----------
   async function loadAll() {
-    const [t, s] = await Promise.all([
+    const [t, s, f] = await Promise.all([
       sb.from('transactions').select('*').order('transaction_date', { ascending: false }).limit(1000),
-      sb.from('user_settings').select('*').maybeSingle()
+      sb.from('user_settings').select('*').maybeSingle(),
+      sb.from('fixed_costs').select('*').order('created_at')
     ]);
     if (t.error) return toast('Load failed: ' + t.error.message, true);
     S.tx = t.data;
+    if (f.error) console.warn('Fixed costs not loaded:', f.error.message);
+    S.fixed = f.data || [];
     if (s.data) {
       S.budget = cents(s.data.monthly_budget);
+      S.weekly = cents(s.data.weekly_budget || 0);
       S.currency = s.data.currency;
       S.startDay = s.data.budget_start_day;
-      $('#budget').value = s.data.monthly_budget;
+      $('#budget').value = s.data.monthly_budget || '';
+      $('#weekly').value = s.data.weekly_budget || '';
+      S.alert = s.data.alert_percent || 80;
+      $('#alert').value = String(S.alert);
       $('#startday').value = s.data.budget_start_day;
     }
     sortCategories();
@@ -124,8 +138,23 @@
   }
 
   // ---------- Render ----------
-  function row(t, withDelete) {
-    const r = el('li', 'row');
+  async function removeTx(t) {
+    if (!confirm('Delete "' + t.description + '"?')) return;
+    const { error } = await sb.from('transactions').delete().eq('id', t.id);
+    if (error) return toast('Not deleted: ' + error.message, true);
+    toast('Deleted.');
+    await loadAll();
+    goBack();
+  }
+
+  function row(t) {
+    const r = el('li', 'row tap');
+    r.tabIndex = 0;
+    r.setAttribute('role', 'button');
+    r.addEventListener('click', () => openDetail(t.id));
+    r.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(t.id); }
+    });
     const l = el('div', 'l');
     const when = new Date(t.transaction_date).toLocaleString('en-GB',
       { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -133,24 +162,48 @@
     l.append(el('b', '', t.description), el('span', '', sub));
     const out = t.type === 'expense';
     r.append(l, el('span', 'amt ' + (out ? 'out' : 'in'), (out ? '-' : '+') + money(cents(t.amount))));
-    if (withDelete) {
-      const ed = el('button', 'del', 'Edit');
-      ed.addEventListener('click', () => startEdit(t));
-      r.append(ed);
-      const d = el('button', 'del', 'Delete');
-      d.addEventListener('click', async () => {
-        if (!confirm('Delete "' + t.description + '"?')) return;
-        const { error } = await sb.from('transactions').delete().eq('id', t.id);
-        if (error) return toast('Not deleted: ' + error.message, true);
-        toast('Deleted.');
-        loadAll();
-      });
-      r.append(d);
-    }
+    const chev = el('span', 'chev', '\u203A');
+    chev.setAttribute('aria-hidden', 'true');
+    r.append(chev);
     return r;
   }
 
-  function render() {
+  function renderDetail() {
+    const t = S.tx.find(x => x.id === S.detailId);
+    const box = $('#detail');
+    if (!t) return;
+    box.replaceChildren();
+    const out = t.type === 'expense';
+    const card = el('div', 'hero');
+    card.append(el('span', 'lbl', out ? 'Expense' : 'Income'),
+      el('strong', out ? '' : 'in', (out ? '-' : '+') + money(cents(t.amount))),
+      el('span', 'lbl', t.description));
+    const ul = el('ul', 'list');
+    ul.style.marginTop = '12px';
+    const kv = (k, v) => {
+      if (!v) return;
+      const r = el('li', 'row kv');
+      r.append(el('span', '', k), el('b', '', v));
+      ul.append(r);
+    };
+    kv('Category', t.category);
+    kv('Date', new Date(t.transaction_date).toLocaleString('en-GB',
+      { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
+    kv('Payment method', t.payment_method);
+    kv('Need, want or impulse', t.purchase_type ? t.purchase_type[0].toUpperCase() + t.purchase_type.slice(1) : '');
+    kv('Reason', t.reason);
+    const acts = el('div', 'dactions');
+    const ed = el('button', 'primary', 'Edit');
+    ed.type = 'button';
+    ed.addEventListener('click', () => startEdit(t));
+    const del = el('button', 'danger', 'Delete');
+    del.type = 'button';
+    del.addEventListener('click', () => removeTx(t));
+    acts.append(ed, del);
+    box.append(card, ul, acts);
+  }
+
+  function totals() {
     const now = new Date();
     const day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const wk0 = new Date(day0);
@@ -164,24 +217,53 @@
       if (d >= day0) today += c;
       if (d >= wk0) week += c;
     }
+    return { spent, income, today, week };
+  }
+
+  function usage() {
+    const { spent, week } = totals();
+    return { m: S.budget ? spent * 100 / S.budget : 0, w: S.weekly ? week * 100 / S.weekly : 0 };
+  }
+
+  function crossMsg(b, a) {
+    for (const [k, label] of [['m', 'monthly'], ['w', 'weekly']]) {
+      if (a[k] >= 100 && b[k] < 100) return 'Your ' + label + ' budget is exceeded.';
+      if (a[k] >= S.alert && b[k] < S.alert) return 'Heads up: ' + Math.round(a[k]) + '% of your ' + label + ' budget used.';
+    }
+    return null;
+  }
+
+  function render() {
+    const { spent, income, today, week } = totals();
     $('#left').textContent = money(S.budget - spent);
     $('#today').textContent = money(today);
     $('#week').textContent = money(week);
     $('#spent').textContent = money(spent);
     $('#income').textContent = money(income);
 
+    const state = p => p >= 100 ? 'bar over' : p >= S.alert ? 'bar near' : 'bar';
     const pct = S.budget ? (spent / S.budget) * 100 : 0;
     $('#bar').style.width = Math.min(pct, 100) + '%';
-    $('#warn').textContent = !S.budget ? 'Set a monthly budget below.'
-      : pct >= 100 ? 'Budget exceeded.'
-      : pct >= 85 ? '85% of budget used.'
-      : pct >= 70 ? '70% of budget used.' : '';
+    $('#bar').parentElement.className = state(pct);
+    $('#warn').textContent = S.budget ? Math.round(pct) + '% of monthly budget used' : 'Set a monthly budget in Settings.';
+
+    $('#wcard').hidden = !S.weekly;
+    if (S.weekly) {
+      const wp = (week / S.weekly) * 100;
+      $('#wleft').textContent = money(S.weekly - week);
+      $('#wbar').style.width = Math.min(wp, 100) + '%';
+      $('#wbar').parentElement.className = state(wp);
+      $('#wwarn').textContent = Math.round(wp) + '% of weekly budget used';
+    }
+    renderFixed();
+    renderAlerts(spent, week);
 
     const rec = $('#recent');
     rec.replaceChildren();
     if (!S.tx.length) rec.append(el('li', 'row empty', 'No transactions yet. Type an amount to start.'));
-    S.tx.slice(0, 5).forEach(t => rec.append(row(t, false)));
+    S.tx.slice(0, 5).forEach(t => rec.append(row(t)));
     renderHistory();
+    if (S.view === 'detail') renderDetail();
   }
 
   function renderHistory() {
@@ -213,7 +295,7 @@
       head.append(el('span', '', new Date(k).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })),
         el('span', '', 'Spent ' + money(sub)));
       const ul = el('ul', 'list');
-      items.forEach(t => ul.append(row(t, true)));
+      items.forEach(t => ul.append(row(t)));
       box.append(head, ul);
     }
   }
@@ -327,15 +409,18 @@
     S.busy = true;
     $('#save').disabled = true;
     const wasEdit = !!S.editId;
-    let error;
+    const editedId = S.editId;
+    let error, alertMsg = null;
     if (wasEdit) {
       ({ error } = await sb.from('transactions').update(rec).eq('id', S.editId));
     } else {
       const r = await sb.from('transactions').insert(rec).select().single();
       error = r.error;
       if (!error && r.data) {
+        const before = usage();
         S.tx.unshift(r.data);
         S.tx.sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date));
+        alertMsg = crossMsg(before, usage());
       }
     }
     S.busy = false;
@@ -344,20 +429,24 @@
 
     if (exp) { mem.set('cat', S.cat); if (rec.payment_method) mem.set('pay', rec.payment_method); }
     resetEdit();
-    toast(wasEdit ? 'Updated.' : 'Saved.');
+    if (alertMsg) toast(alertMsg, true, 4500); else toast(wasEdit ? 'Updated.' : 'Saved.');
     if (wasEdit) await loadAll(); else render();
-    if (wide.matches) $('#amount').focus(); else show('overview');
+    if (wasEdit) openDetail(editedId);
+    else if (wide.matches) $('#amount').focus();
+    else show('overview');
   });
 
   // ---------- Settings ----------
   $('#settings').addEventListener('submit', async e => {
     e.preventDefault();
-    const b = parseFloat($('#budget').value.replace(',', '.'));
+    const num = v => v.trim() === '' ? 0 : parseFloat(v.replace(',', '.'));
+    const b = num($('#budget').value), w = num($('#weekly').value);
     const d = parseInt($('#startday').value, 10);
-    if (!isFinite(b) || b < 0) return toast('Enter a valid budget.', true);
+    if (!isFinite(b) || b < 0) return toast('Enter a valid monthly budget.', true);
+    if (!isFinite(w) || w < 0) return toast('Enter a valid weekly budget.', true);
     if (!(d >= 1 && d <= 28)) return toast('Start day must be 1 to 28.', true);
     const { error } = await sb.from('user_settings').upsert({
-      user_id: S.user.id, monthly_budget: b, budget_start_day: d, updated_at: new Date().toISOString()
+      user_id: S.user.id, monthly_budget: b, weekly_budget: w, budget_start_day: d, alert_percent: parseInt($('#alert').value, 10) || 80, updated_at: new Date().toISOString()
     });
     if (error) return toast('Not saved: ' + error.message, true);
     toast('Budget saved.');
@@ -415,7 +504,11 @@
     setSaveLabel();
     show('add');
   }
-  $('#cancel').addEventListener('click', () => { resetEdit(); show(wide.matches ? S.view : 'history'); });
+  $('#cancel').addEventListener('click', () => {
+    const id = S.editId;
+    resetEdit();
+    if (id) openDetail(id); else show(wide.matches ? S.view : 'history');
+  });
 
   // ---------- Filters ----------
   CATS.concat('Income').forEach(c => { const o = el('option', '', c); o.value = c; $('#fcat').append(o); });
@@ -490,6 +583,181 @@
     renderStats();
   }));
 
+  // ---------- Fixed costs ----------
+  // Logos live in imgs/. If a file is missing, the tile falls back to the first letter.
+  const PRESETS = [
+    { key: 'youtube', name: 'YouTube', img: 'imgs/youtube.png' },
+    { key: 'apple-music', name: 'Apple Music', img: 'imgs/apple-music.jpg' },
+    { key: 'icloud', name: 'iCloud', img: 'imgs/icloud.png' },
+    { key: 'spotify', name: 'Spotify', img: 'imgs/spotify.jpg' }
+  ];
+  const FX = { id: null, logo: null };
+
+  function logo(key, name) {
+    const box = el('span', 'logo');
+    const p = PRESETS.find(x => x.key === key);
+    const letter = () => {
+      box.replaceChildren();
+      box.classList.add('ph');
+      box.textContent = ((name || '').trim()[0] || '+').toUpperCase();
+    };
+    if (p) {
+      const i = new Image();
+      i.alt = '';
+      i.src = p.img;
+      i.addEventListener('error', letter);
+      box.append(i);
+    } else letter();
+    return box;
+  }
+
+  function nextRenewal(day) {
+    const n = new Date(), t0 = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    const pick = (y, m) => new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));
+    let d = pick(t0.getFullYear(), t0.getMonth());
+    if (d < t0) d = pick(t0.getFullYear(), t0.getMonth() + 1);
+    return { date: d, days: Math.round((d - t0) / 864e5) };
+  }
+  const inDays = n => n === 0 ? 'today' : n === 1 ? 'tomorrow' : 'in ' + n + ' days';
+  const ordinal = n => n + ((n % 100 >= 11 && n % 100 <= 13) ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] || 'th'));
+
+  function renderFixed() {
+    const list = S.fixed.map(c => ({ c, r: nextRenewal(c.renew_day) })).sort((a, b) => a.r.days - b.r.days);
+    const total = S.fixed.reduce((a, c) => a + cents(c.amount), 0);
+    $('#fx-total').textContent = money(total);
+    $('#fx-next').textContent = list.length ? list[0].c.name + ', ' + inDays(list[0].r.days) : 'None';
+
+    const box = $('#fixed');
+    box.replaceChildren();
+    if (!list.length) box.append(el('li', 'row empty', 'No fixed costs yet. Add your first one below.'));
+    list.forEach(({ c, r }) => {
+      const li = el('li', 'row tap'), l = el('div', 'l');
+      li.tabIndex = 0;
+      li.setAttribute('role', 'button');
+      l.append(el('b', '', c.name), el('span', '', 'Renews on the ' + ordinal(c.renew_day) + ', ' + inDays(r.days)));
+      const chev = el('span', 'chev', '\u203A');
+      chev.setAttribute('aria-hidden', 'true');
+      li.append(logo(c.logo, c.name), l, el('span', 'amt', money(cents(c.amount))), chev);
+      li.addEventListener('click', () => startFx(c));
+      li.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startFx(c); } });
+      box.append(li);
+    });
+
+    const up = $('#upcoming');
+    up.replaceChildren();
+    if (!list.length) up.append(el('li', 'row empty', 'No fixed costs yet. Add them in Settings.'));
+    list.slice(0, 5).forEach(({ c, r }) => {
+      const li = el('li', 'row'), l = el('div', 'l');
+      l.append(el('b', '', c.name),
+        el('span', '', r.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + inDays(r.days)));
+      li.append(logo(c.logo, c.name), l, el('span', 'amt', money(cents(c.amount))));
+      up.append(li);
+    });
+  }
+
+  function renderAlerts(spent, week) {
+    const box = $('#alerts');
+    box.replaceChildren();
+    const add = (cls, text) => box.append(el('div', 'alert ' + cls, text));
+    const check = (label, limit, used) => {
+      if (!limit) return;
+      const p = used * 100 / limit;
+      if (p >= 100) add('bad', label + ' budget exceeded by ' + money(used - limit) + '.');
+      else if (p >= S.alert) add('', 'You have used ' + Math.round(p) + '% of your ' + label.toLowerCase() +
+        ' budget. ' + money(limit - used) + ' left.');
+    };
+    check('Monthly', S.budget, spent);
+    check('Weekly', S.weekly, week);
+    S.fixed.forEach(c => {
+      const r = nextRenewal(c.renew_day);
+      if (r.days <= 3) add('info', c.name + ' renews ' + inDays(r.days) + ' (' + money(cents(c.amount)) + ').');
+    });
+  }
+
+  function renderSvc() {
+    const box = $('#svc');
+    box.replaceChildren();
+    const mk = (key, name, label) => {
+      const b = el('button');
+      b.type = 'button';
+      b.className = FX.logo === key ? 'on' : '';
+      b.setAttribute('aria-pressed', FX.logo === key);
+      b.append(logo(key, key ? name : '+'), el('span', '', label));
+      b.addEventListener('click', () => {
+        const prev = PRESETS.find(p => p.key === FX.logo);
+        FX.logo = key;
+        const cur = $('#fx-name').value.trim();
+        if (key && (!cur || (prev && cur === prev.name))) $('#fx-name').value = name;
+        else if (!key && prev && cur === prev.name) $('#fx-name').value = '';
+        renderSvc();
+        (key ? $('#fx-amount') : $('#fx-name')).focus();
+      });
+      box.append(b);
+    };
+    PRESETS.forEach(p => mk(p.key, p.name, p.name));
+    mk(null, '', 'Custom');
+  }
+
+  function resetFx() {
+    FX.id = null;
+    FX.logo = null;
+    $('#fx').reset();
+    $('#fx-day').value = 1;
+    $('#fx-title').textContent = 'Add fixed cost';
+    $('#fx-save').textContent = 'Add fixed cost';
+    $('#fx-cancel').hidden = true;
+    $('#fx-del').hidden = true;
+    renderSvc();
+  }
+  function startFx(c) {
+    FX.id = c.id;
+    FX.logo = PRESETS.some(p => p.key === c.logo) ? c.logo : null;
+    $('#fx-name').value = c.name;
+    $('#fx-amount').value = c.amount;
+    $('#fx-day').value = c.renew_day;
+    $('#fx-title').textContent = 'Edit fixed cost';
+    $('#fx-save').textContent = 'Update fixed cost';
+    $('#fx-cancel').hidden = false;
+    $('#fx-del').hidden = false;
+    renderSvc();
+    $('#fx-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  $('#fx').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (S.busy) return;
+    const name = $('#fx-name').value.trim();
+    const amt = parseFloat($('#fx-amount').value.replace(',', '.'));
+    const day = parseInt($('#fx-day').value, 10);
+    if (!name) { $('#fx-name').focus(); return toast('Enter a name.', true); }
+    if (!isFinite(amt) || amt <= 0) { $('#fx-amount').focus(); return toast('Enter an amount above 0.', true); }
+    if (!(day >= 1 && day <= 31)) return toast('Renewal day must be 1 to 31.', true);
+    const rec = { user_id: S.user.id, name, amount: Math.round(amt * 100) / 100, renew_day: day, logo: FX.logo };
+    S.busy = true;
+    $('#fx-save').disabled = true;
+    const wasEdit = !!FX.id;
+    const { error } = wasEdit
+      ? await sb.from('fixed_costs').update(rec).eq('id', FX.id)
+      : await sb.from('fixed_costs').insert(rec);
+    S.busy = false;
+    $('#fx-save').disabled = false;
+    if (error) return toast('Not saved: ' + error.message, true);
+    toast(wasEdit ? 'Updated.' : 'Added.');
+    resetFx();
+    loadAll();
+  });
+  $('#fx-cancel').addEventListener('click', resetFx);
+  $('#fx-del').addEventListener('click', async () => {
+    const c = S.fixed.find(x => x.id === FX.id);
+    if (!c || !confirm('Delete "' + c.name + '"?')) return;
+    const { error } = await sb.from('fixed_costs').delete().eq('id', c.id);
+    if (error) return toast('Not deleted: ' + error.message, true);
+    toast('Deleted.');
+    resetFx();
+    loadAll();
+  });
+
+  renderSvc();
   renderChips();
   refreshWhen();
   sb.auth.getSession().then(({ data }) => route(data.session));
