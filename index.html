@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="analytics.css">
 </head>
 <body>
 
@@ -18,6 +19,7 @@
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></symbol>
   <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></symbol>
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+  <symbol id="i-insights" viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M15 8h5v5"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
 </svg>
 
@@ -42,8 +44,7 @@
   <nav aria-label="Main">
     <button data-v="overview" class="on"><svg class="ico"><use href="#i-home"/></svg><span>Overview</span></button>
     <button data-v="add"><svg class="ico"><use href="#i-plus"/></svg><span>Add</span></button>
-    <button data-v="history"><svg class="ico"><use href="#i-list"/></svg><span>History</span></button>
-    <button data-v="stats"><svg class="ico"><use href="#i-chart"/></svg><span>Stats</span></button>
+    <button data-v="analytics"><svg class="ico"><use href="#i-insights"/></svg><span>Analytics</span></button>
     <button data-v="settings"><svg class="ico"><use href="#i-sliders"/></svg><span>Settings</span></button>
   </nav>
 
@@ -79,18 +80,6 @@
           <ul id="upcoming" class="list"></ul>
         </div>
       </div>
-    </section>
-
-    <section class="view" id="v-history" hidden>
-      <h2 class="title">History</h2>
-      <input id="q" type="search" placeholder="Search note or category">
-      <div class="filters">
-        <select id="fcat" aria-label="Category"><option value="">All categories</option></select>
-        <select id="ftype" aria-label="Type"><option value="">All types</option><option value="expense">Expenses</option><option value="income">Income</option></select>
-        <input id="ffrom" type="date" aria-label="From date">
-        <input id="fto" type="date" aria-label="To date">
-      </div>
-      <div id="hist"></div>
     </section>
 
     <section class="view" id="v-detail" hidden>
@@ -137,8 +126,12 @@
       </form>
     </section>
 
-    <section class="view" id="v-stats" hidden>
-      <h2 class="title">Stats</h2>
+    <section class="view" id="v-analytics" hidden>
+      <h2 class="title">Analytics</h2>
+      <div id="atabs" class="segs atabs" role="tablist"></div>
+      <div class="apane" id="a-weekly"></div>
+      <div class="apane" id="a-categories" hidden></div>
+      <div class="apane" id="a-stats" hidden>
       <div class="segs">
         <button data-days="7">7 days</button>
         <button data-days="30" class="on">30 days</button>
@@ -155,14 +148,22 @@
           <h2>Spent per day</h2>
           <div class="chart"><canvas id="c-day"></canvas></div>
         </div>
-        <div>
-          <h2>By category</h2>
-          <div class="chart tall"><canvas id="c-cat"></canvas></div>
-        </div>
       </div>
-      <h2>Need, want, impulse</h2>
-      <ul id="ptypes" class="list"></ul>
+      <div id="a-needs"></div>
+      <div id="a-patterns"></div>
+      </div>
+      <div class="apane" id="a-history" hidden>
+      <input id="q" type="search" placeholder="Search note or category">
+      <div class="filters">
+        <select id="fcat" aria-label="Category"><option value="">All categories</option></select>
+        <select id="ftype" aria-label="Type"><option value="">All types</option><option value="expense">Expenses</option><option value="income">Income</option></select>
+        <input id="ffrom" type="date" aria-label="From date">
+        <input id="fto" type="date" aria-label="To date">
+      </div>
+      <div id="hist"></div>
+      </div>
     </section>
+
   </div>
 
   <section class="view" id="v-add" hidden>
@@ -216,6 +217,10 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="config.js"></script>
 <script src="supabase.js"></script>
+<script src="analytics.js"></script>
+<script src="analytics-categories.js"></script>
+<script src="analytics-needs.js"></script>
+<script src="analytics-patterns.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

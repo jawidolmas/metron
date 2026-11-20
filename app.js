@@ -3,7 +3,7 @@
   const CATS = ['Food & Groceries', 'Coffee & Drinks', 'Transportation', 'Education', 'Personal Care',
     'Shopping', 'Social & Entertainment', 'Subscriptions', 'Health & Fitness', 'Other'];
   const VISIBLE_CATS = 6;
-  const S = { tx: [], budget: 0, weekly: 0, alert: 80, fixed: [], startDay: 1, detailId: null, prev: 'history', pushed: false, currency: 'TRY', type: 'expense', cat: CATS[0], busy: false,
+  const S = { tx: [], budget: 0, weekly: 0, alert: 80, fixed: [], startDay: 1, detailId: null, prev: 'analytics', pushed: false, currency: 'TRY', type: 'expense', cat: CATS[0], busy: false,
     user: null, editId: null, range: 30, view: 'overview', order: CATS.slice(), allCats: false, whenTouched: false };
   const charts = {};
   const wide = window.matchMedia('(min-width: 1100px)');
@@ -45,7 +45,7 @@
     const navView = view === 'detail' ? S.prev : view;
     document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === navView));
     if (view === 'add') { refreshWhen(); $('#amount').focus(); }
-    if (view === 'stats') renderStats();
+    if (view === 'analytics') window.MetronAnalytics?.render();
     if (view === 'detail') {
       renderDetail();
       window.scrollTo(0, 0);
@@ -263,6 +263,7 @@
     if (!S.tx.length) rec.append(el('li', 'row empty', 'No transactions yet. Type an amount to start.'));
     S.tx.slice(0, 5).forEach(t => rec.append(row(t)));
     renderHistory();
+    if (S.view === 'analytics') window.MetronAnalytics?.render();
     if (S.view === 'detail') renderDetail();
   }
 
@@ -507,7 +508,7 @@
   $('#cancel').addEventListener('click', () => {
     const id = S.editId;
     resetEdit();
-    if (id) openDetail(id); else show(wide.matches ? S.view : 'history');
+    if (id) openDetail(id); else (window.MetronAnalytics?.open('history'), show(wide.matches ? S.view : 'analytics'));
   });
 
   // ---------- Filters ----------
@@ -532,14 +533,13 @@
     else start = periodStart();
     const n = Math.max(1, Math.round((today0 - start) / 864e5) + 1);
     const ex = S.tx.filter(t => t.type === 'expense' && new Date(t.transaction_date) >= start);
-    const byDay = new Map(), byCat = new Map(), pt = { need: 0, want: 0, impulse: 0, unmarked: 0 };
+    const byDay = new Map(), byCat = new Map();
     let tot = 0;
     for (const t of ex) {
       const c = cents(t.amount), k = dayKey(t.transaction_date);
       tot += c;
       byDay.set(k, (byDay.get(k) || 0) + c);
       byCat.set(t.category, (byCat.get(t.category) || 0) + c);
-      pt[t.purchase_type || 'unmarked'] += c;
     }
     const top = m => [...m.entries()].sort((a, b) => b[1] - a[1])[0];
     const tc = top(byCat), td = top(byDay);
@@ -563,23 +563,12 @@
     draw('c-day', { type: 'bar', data: { labels, datasets: [{ data: vals, backgroundColor: accent, borderRadius: 6 }] },
       options: { ...base, scales: { x: { ticks: { color: mute, maxTicksLimit: 8 }, grid: { display: false } },
         y: { beginAtZero: true, ticks: { color: mute }, grid: { color: line } } } } });
-    const cats = [...byCat.entries()].sort((a, b) => b[1] - a[1]);
-    draw('c-cat', { type: 'bar', data: { labels: cats.map(c => c[0]), datasets: [{ data: cats.map(c => c[1] / 100), backgroundColor: accent, borderRadius: 6 }] },
-      options: { ...base, indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { color: mute }, grid: { color: line } },
-        y: { ticks: { color: mute }, grid: { display: false } } } } });
 
-    const box = $('#ptypes');
-    box.replaceChildren();
-    [['need', 'Need'], ['want', 'Want'], ['impulse', 'Impulse'], ['unmarked', 'Not marked']].forEach(([k, label]) => {
-      const r = el('li', 'row'), l = el('div', 'l');
-      l.append(el('b', '', label), el('span', '', (tot ? Math.round(pt[k] * 100 / tot) : 0) + '% of spending'));
-      r.append(l, el('span', 'amt', money(pt[k])));
-      box.append(r);
-    });
+    window.MetronAnalytics?.runExtras('stats');
   }
-  document.querySelectorAll('#v-stats .segs button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#a-stats .segs button').forEach(b => b.addEventListener('click', () => {
     S.range = Number(b.dataset.days);
-    document.querySelectorAll('#v-stats .segs button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('#a-stats .segs button').forEach(x => x.classList.toggle('on', x === b));
     renderStats();
   }));
 
@@ -756,6 +745,9 @@
     resetFx();
     loadAll();
   });
+
+  // Read-only bridge for external modules (analytics*.js).
+  window.Metron = { S, $, el, money, cents, dayKey, charts, draw, CATS, periodStart, renderStats, renderHistory };
 
   renderSvc();
   renderChips();
