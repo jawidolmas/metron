@@ -1,4 +1,4 @@
-// Metron analytics. Tabs: Weekly (phase 1), Categories (phase 2), Stats and History (moved in).
+// Metron analytics. Tabs: Weekly (phase 1, insights in phase 6), Categories (phase 2), Stats and History (moved in).
 //
 // Later phases live in their own files and add a tab like this:
 //   MetronAnalytics.register({ key: 'categories', label: 'Categories', order: 20, render(root) { ... } });
@@ -189,7 +189,16 @@
     tab.render(pane);
   }
 
-  register({ key: 'weekly', label: 'Weekly', order: 10, render: renderOverview });
+  // Weekly: an empty slot at the top for insights (analytics-insights.js), then the weekly overview.
+  function renderWeekly(root) {
+    const slot = M().el('div');
+    slot.id = 'a-insights';
+    root.append(slot);
+    renderOverview(root);
+    runExtras('weekly');
+  }
+
+  register({ key: 'weekly', label: 'Weekly', order: 10, render: renderWeekly });
   register({ key: 'stats', label: 'Stats', order: 30, static: true, render: () => M().renderStats() });
   register({ key: 'history', label: 'History', order: 40, static: true, render: () => M().renderHistory() });
   window.MetronAnalytics = { register, render, open, extend, runExtras, util: { startOfDay, addDays, weekStart, short, statsRange, DAY } };
