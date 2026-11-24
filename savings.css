@@ -1,0 +1,6 @@
+/* Savings (Settings page) */
+.stats.places { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); }
+#sv-summary .stats { margin-bottom: 16px; }
+#sv-summary .hero { margin-bottom: 0; }
+#sv-hist .row.tap .amt { margin-left: 4px; }
+#sv-hist .more { width: 100%; }
