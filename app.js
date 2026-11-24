@@ -18,6 +18,9 @@
   const cents = n => Math.round(Number(n) * 100);
   const money = c => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: S.currency }).format(c / 100);
 
+  // Money set aside in savings (see savings.js). Held out of the monthly budget when that option is on.
+  const savedHeld = () => (window.MetronSavings && window.MetronSavings.held()) || 0;
+
   function el(tag, cls, text) {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -127,6 +130,7 @@
       $('#startday').value = s.data.budget_start_day;
     }
     sortCategories();
+    if (window.MetronSavings) await window.MetronSavings.load();
     render();
   }
 
@@ -222,7 +226,7 @@
 
   function usage() {
     const { spent, week } = totals();
-    return { m: S.budget ? spent * 100 / S.budget : 0, w: S.weekly ? week * 100 / S.weekly : 0 };
+    return { m: S.budget ? (spent + savedHeld()) * 100 / S.budget : 0, w: S.weekly ? week * 100 / S.weekly : 0 };
   }
 
   function crossMsg(b, a) {
@@ -235,17 +239,18 @@
 
   function render() {
     const { spent, income, today, week } = totals();
-    $('#left').textContent = money(S.budget - spent);
+    const held = savedHeld();
+    $('#left').textContent = money(S.budget - spent - held);
     $('#today').textContent = money(today);
     $('#week').textContent = money(week);
     $('#spent').textContent = money(spent);
     $('#income').textContent = money(income);
 
     const state = p => p >= 100 ? 'bar over' : p >= S.alert ? 'bar near' : 'bar';
-    const pct = S.budget ? (spent / S.budget) * 100 : 0;
+    const pct = S.budget ? ((spent + held) / S.budget) * 100 : 0;
     $('#bar').style.width = Math.min(pct, 100) + '%';
     $('#bar').parentElement.className = state(pct);
-    $('#warn').textContent = S.budget ? Math.round(pct) + '% of monthly budget used' : 'Set a monthly budget in Settings.';
+    $('#warn').textContent = S.budget ? Math.round(pct) + '% of monthly budget used' + (held > 0 ? ' (' + money(held) + ' set aside for savings)' : '') : 'Set a monthly budget in Settings.';
 
     $('#wcard').hidden = !S.weekly;
     if (S.weekly) {
@@ -256,7 +261,8 @@
       $('#wwarn').textContent = Math.round(wp) + '% of weekly budget used';
     }
     renderFixed();
-    renderAlerts(spent, week);
+    renderAlerts(spent + held, week);
+    if (window.MetronSavings) window.MetronSavings.render();
 
     const rec = $('#recent');
     rec.replaceChildren();
@@ -453,6 +459,15 @@
     toast('Budget saved.');
     loadAll();
   });
+
+  // ---------- Settings tabs ----------
+  document.querySelectorAll('#stabs button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#stabs button').forEach(x => {
+      x.classList.toggle('on', x === b);
+      x.setAttribute('aria-selected', x === b);
+    });
+    document.querySelectorAll('.spane').forEach(p => { p.hidden = p.id !== 's-' + b.dataset.s; });
+  }));
 
   // ---------- Nav / search / shortcut ----------
   document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => {
@@ -709,6 +724,7 @@
     $('#fx-cancel').hidden = false;
     $('#fx-del').hidden = false;
     renderSvc();
+    $('#stabs [data-s="fixed"]').click();
     $('#fx-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -747,7 +763,7 @@
   });
 
   // Read-only bridge for external modules (analytics*.js).
-  window.Metron = { S, $, el, money, cents, dayKey, charts, draw, CATS, periodStart, renderStats, renderHistory };
+  window.Metron = { S, $, el, money, cents, dayKey, charts, draw, CATS, periodStart, renderStats, renderHistory, render, toast };
 
   renderSvc();
   renderChips();
