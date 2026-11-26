@@ -54,13 +54,18 @@
       <h2 class="title">Overview</h2>
       <div id="alerts"></div>
       <div class="hero">
-        <span class="lbl">Left this period</span>
+        <span class="lbl">Available balance</span>
+        <strong id="bal">0</strong>
+        <span class="lbl" id="blocked">Money you have right now</span>
+      </div>
+      <div class="hero week" id="mcard">
+        <span class="lbl">Monthly target left</span>
         <strong id="left">0</strong>
         <div class="bar"><i id="bar"></i></div>
         <span id="warn" class="warn"></span>
       </div>
       <div class="hero week" id="wcard" hidden>
-        <span class="lbl">Left this week</span>
+        <span class="lbl">Weekly limit left</span>
         <strong id="wleft">0</strong>
         <div class="bar"><i id="wbar"></i></div>
         <span id="wwarn" class="warn"></span>
@@ -68,8 +73,8 @@
       <div class="stats">
         <div><span class="lbl">Today</span><b id="today">0</b></div>
         <div><span class="lbl">This week</span><b id="week">0</b></div>
-        <div><span class="lbl">Spent</span><b id="spent">0</b></div>
-        <div><span class="lbl">Income</span><b id="income">0</b></div>
+        <div><span class="lbl">Expenses</span><b id="spent">0</b></div>
+        <div><span class="lbl">Income received</span><b id="income">0</b></div>
         <div><span class="lbl">Saved</span><b id="saved">0</b></div>
       </div>
       <div class="cols">
@@ -94,15 +99,16 @@
       <h2 class="title">Settings</h2>
 
       <div id="stabs" class="segs" role="tablist">
-        <button type="button" data-s="budget" class="on" role="tab" aria-selected="true">Budget</button>
-        <button type="button" data-s="savings" role="tab" aria-selected="false">Savings</button>
-        <button type="button" data-s="fixed" role="tab" aria-selected="false">Fixed costs</button>
+        <button type="button" data-s="budget" class="on">Budget</button>
+        <button type="button" data-s="savings">Savings</button>
+        <button type="button" data-s="fixed">Fixed costs</button>
       </div>
 
       <div class="spane" id="s-budget">
       <form id="settings" class="inline">
-        <label>Monthly budget<input id="budget" inputmode="decimal" placeholder="8500"></label>
-        <label>Weekly budget<input id="weekly" inputmode="decimal" placeholder="2000"></label>
+        <label>Current balance (the money you have right now)<input id="opening" inputmode="decimal" placeholder="0"></label>
+        <label>Monthly budget<input id="budget" inputmode="decimal" placeholder="5000"></label>
+        <label>Weekly budget<input id="weekly" inputmode="decimal" placeholder="1500"></label>
         <label>Budget starts on day<input id="startday" type="number" min="1" max="28" value="1"></label>
         <label>Warn me when I reach
           <select id="alert">
@@ -118,28 +124,20 @@
 
       <div class="spane" id="s-savings" hidden>
       <div id="sv-summary"></div>
-      <div id="sv-kind" class="segs" role="group" aria-label="Savings action">
-        <button type="button" data-k="deposit" class="on">Save</button>
-        <button type="button" data-k="withdraw">Withdraw</button>
-        <button type="button" data-k="transfer">Move</button>
-      </div>
+      <div id="sv-tips"></div>
+      <h2>Save or withdraw money</h2>
       <form id="sv" class="inline" autocomplete="off">
-        <label>Amount<input id="sv-amount" inputmode="decimal" placeholder="1000"></label>
+        <div id="sv-kind" class="segs">
+          <button type="button" data-k="deposit" class="on">Save</button>
+          <button type="button" data-k="withdraw">Withdraw</button>
+        </div>
+        <label>Amount<input id="sv-amount" inputmode="decimal" placeholder="0.00"></label>
         <label><span id="sv-a-lbl">Money came from</span><select id="sv-a"></select></label>
         <label><span id="sv-b-lbl">Keep it in</span><select id="sv-b"></select></label>
         <label>Date (optional)<input id="sv-date" type="date"></label>
-        <label>Note (optional)<input id="sv-note" placeholder="Holiday fund"></label>
+        <label>Note (optional)<input id="sv-note" placeholder="Note"></label>
         <button id="sv-save" class="primary">Save money</button>
       </form>
-      <form id="sv-opts" class="inline">
-        <label>Saved money and my monthly budget
-          <select id="sv-deduct">
-            <option value="on">Hold it out of my budget until I withdraw it</option>
-            <option value="off">Do not change my budget</option>
-          </select>
-        </label>
-      </form>
-      <div id="sv-tips"></div>
       <h2>Savings history</h2>
       <ul id="sv-hist" class="list"></ul>
       </div>
