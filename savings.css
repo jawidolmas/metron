@@ -4,3 +4,4 @@
 #sv-summary .hero { margin-bottom: 0; }
 #sv-hist .row.tap .amt { margin-left: 4px; }
 #sv-hist .more { width: 100%; }
+#sv-kind { grid-template-columns: 1fr 1fr; }
