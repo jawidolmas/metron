@@ -26,7 +26,6 @@
     get(k) { try { return localStorage.getItem('metron.sv.' + k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem('metron.sv.' + k, v); } catch { /* ignore */ } }
   };
-  const deductOn = () => store.get('deduct') !== 'off';
   const cents = r => Math.round(Number(r.amount) * 100);
 
   // ---------- Data ----------
@@ -51,11 +50,22 @@
 
   // Cents held out of the current budget period: deposits from the budget minus withdrawals released to it.
   function held() {
-    if (!ready || !deductOn()) return 0;
+    if (!ready) return 0;
     const p0 = M().periodStart();
     let h = 0;
     for (const r of rows) {
       if (new Date(r.saved_at) < p0) continue;
+      if (r.kind === 'deposit' && r.source !== 'outside') h += cents(r);
+      else if (r.kind === 'withdraw' && r.to_budget) h -= cents(r);
+    }
+    return h;
+  }
+
+  // Cents set aside from the budget over all time (deposits from the budget minus withdrawals released to it).
+  function heldAll() {
+    if (!ready) return 0;
+    let h = 0;
+    for (const r of rows) {
       if (r.kind === 'deposit' && r.source !== 'outside') h += cents(r);
       else if (r.kind === 'withdraw' && r.to_budget) h -= cents(r);
     }
@@ -172,10 +182,10 @@
     if (total > 0) {
       if (bal.cash * 100 / total >= 30)
         list.push(money(bal.cash) + ' of your savings (' + Math.round(bal.cash * 100 / total) +
-          '%) is in cash. Cash is easy to spend and cannot earn interest. Moving it to your Ziraat card keeps it apart and safer.');
+          '%) is in cash. Cash is easy to spend and cannot earn interest. Keeping it on your Ziraat card keeps it apart and safer.');
       if (bal.vakif * 100 / total >= 30)
         list.push(money(bal.vakif) + ' of your savings (' + Math.round(bal.vakif * 100 / total) +
-          '%) sits on your Vakıfbank card, the one you spend from. Moving it to Ziraat keeps it out of reach of everyday purchases.');
+          '%) sits on your Vakıfbank card, the one you spend from. Keeping it on Ziraat keeps it out of reach of everyday purchases.');
       if (bal.ziraat > 0)
         list.push('Check whether the money on your Ziraat card can sit in an interest-bearing savings account (vadeli hesap). Idle lira loses value to inflation.');
     }
@@ -199,8 +209,7 @@
     const bal = balances(), total = sum(bal), h = held();
     const hero = el('div', 'hero');
     hero.append(el('span', 'lbl', 'Total saved'), el('strong', '', money(total)),
-      el('span', 'warn', !deductOn() ? 'Savings do not change your budget.'
-        : h > 0 ? money(h) + ' of this period is set aside and cannot be spent.'
+      el('span', 'warn', h > 0 ? money(h) + ' of this period is set aside and cannot be spent.'
         : h < 0 ? money(-h) + ' released into this period budget.'
         : 'Nothing set aside from this period budget yet.'));
     const stats = el('div', 'stats places');
@@ -307,13 +316,8 @@
       $('#sv-b-lbl').textContent = 'What happens to it';
       fill(A, PLACES, 'ziraat');
       fill(B, USES, 'budget');
-    } else {
-      $('#sv-a-lbl').textContent = 'Move from';
-      $('#sv-b-lbl').textContent = 'Move to';
-      fill(A, PLACES, 'cash');
-      fill(B, PLACES, 'ziraat');
     }
-    $('#sv-save').textContent = { deposit: 'Save money', withdraw: 'Withdraw money', transfer: 'Move money' }[k];
+    $('#sv-save').textContent = k === 'deposit' ? 'Save money' : 'Withdraw money';
   }
 
   function chosenDate() {
@@ -342,8 +346,7 @@
     else {
       if (c > bal[a]) return toast('Not enough in ' + name(a) + '. It holds ' + money(bal[a]) + '.', true);
       rec.place = a;
-      if (kind === 'withdraw') rec.to_budget = b === 'budget';
-      else { if (a === b) return toast('Choose two different places.', true); rec.to_place = b; }
+      rec.to_budget = b === 'budget';
     }
     busy = true;
     $('#sv-save').disabled = true;
@@ -355,18 +358,11 @@
     $('#sv-amount').value = '';
     $('#sv-note').value = '';
     $('#sv-date').value = '';
-    toast(kind === 'deposit' ? 'Saved.' : kind === 'withdraw' ? 'Withdrawn.' : 'Moved.');
+    toast(kind === 'deposit' ? 'Saved.' : 'Withdrawn.');
     await load();
     M().render();
   });
 
-  $('#sv-deduct').value = deductOn() ? 'on' : 'off';
-  $('#sv-deduct').addEventListener('change', () => {
-    store.set('deduct', $('#sv-deduct').value);
-    M().render();
-  });
-  $('#sv-opts').addEventListener('submit', e => e.preventDefault());
-
   setKind('deposit');
-  window.MetronSavings = { load, render, held, balances };
+  window.MetronSavings = { load, render, held, heldAll, balances };
 })();
