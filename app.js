@@ -225,8 +225,8 @@
   }
 
   function usage() {
-    const { spent, week, held } = totals();
-    return { m: S.budget ? (spent + held) * 100 / S.budget : 0, w: S.weekly ? week * 100 / S.weekly : 0 };
+    const { spent, week } = totals();
+    return { m: S.budget ? spent * 100 / S.budget : 0, w: S.weekly ? week * 100 / S.weekly : 0 };
   }
 
   function crossMsg(b, a) {
@@ -238,8 +238,8 @@
   }
 
   function render() {
-    const { spent, income, today, week, balance, held } = totals();
-    const used = spent + held;
+    const { spent, income, today, week, balance } = totals();
+    const used = spent;
     $('#bal').textContent = money(balance);
     $('#bal').className = balance < 0 ? 'neg' : '';
     const blocked = window.MetronSavings?.heldAll() || 0;
