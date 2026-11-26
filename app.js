@@ -456,13 +456,15 @@
     const o = num($('#opening').value), b = num($('#budget').value), w = num($('#weekly').value);
     const d = parseInt($('#startday').value, 10);
     // The field holds the balance you have right now; the stored opening balance is whatever makes the ledger match it.
+    // The shown balance also excludes money held in savings, so add that back to get the real opening balance.
     const net = S.tx.reduce((a, t) => a + (t.type === 'income' ? 1 : -1) * cents(t.amount), 0);
+    const heldAll = window.MetronSavings?.heldAll() || 0;
     if (!isFinite(o)) return toast('Enter a valid current balance.', true);
     if (!isFinite(b) || b < 0) return toast('Enter a valid monthly target.', true);
     if (!isFinite(w) || w < 0) return toast('Enter a valid weekly limit.', true);
     if (!(d >= 1 && d <= 28)) return toast('Start day must be 1 to 28.', true);
     const { error } = await sb.from('user_settings').upsert({
-      user_id: S.user.id, opening_balance: (cents(o) - net) / 100, monthly_budget: b, weekly_budget: w, budget_start_day: d, alert_percent: parseInt($('#alert').value, 10) || 80, updated_at: new Date().toISOString()
+      user_id: S.user.id, opening_balance: (cents(o) - net + heldAll) / 100, monthly_budget: b, weekly_budget: w, budget_start_day: d, alert_percent: parseInt($('#alert').value, 10) || 80, updated_at: new Date().toISOString()
     });
     if (error) return toast('Not saved: ' + error.message, true);
     toast('Saved.');
