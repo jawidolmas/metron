@@ -215,3 +215,8 @@ summary { cursor: pointer; padding: 10px 0; color: var(--accent); }
 
   #toast { bottom: 32px; left: calc(232px + (100vw - 232px - 380px) / 2); }
 }
+#bal.neg { color: var(--out); }
+
+/* Keep the settings Save button on screen while scrolling the form. */
+#settings > .primary { position: sticky; bottom: calc(74px + env(safe-area-inset-bottom, 0px)); z-index: 5; box-shadow: var(--shadow); }
+@media (min-width: 1100px) { #settings > .primary { bottom: 16px; } }
