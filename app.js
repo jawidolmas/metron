@@ -3,7 +3,7 @@
   const CATS = ['Food & Groceries', 'Coffee & Drinks', 'Transportation', 'Education', 'Personal Care',
     'Shopping', 'Social & Entertainment', 'Subscriptions', 'Health & Fitness', 'Other'];
   const VISIBLE_CATS = 6;
-  const S = { tx: [], budget: 0, weekly: 0, alert: 80, fixed: [], startDay: 1, detailId: null, prev: 'analytics', pushed: false, currency: 'TRY', type: 'expense', cat: CATS[0], busy: false,
+  const S = { tx: [], opening: 0, budget: 0, weekly: 0, alert: 80, fixed: [], startDay: 1, detailId: null, prev: 'analytics', pushed: false, currency: 'TRY', type: 'expense', cat: CATS[0], busy: false,
     user: null, editId: null, range: 30, view: 'overview', order: CATS.slice(), allCats: false, whenTouched: false };
   const charts = {};
   const wide = window.matchMedia('(min-width: 1100px)');
@@ -17,9 +17,6 @@
   // Money is summed in integer cents. No rounded intermediate totals.
   const cents = n => Math.round(Number(n) * 100);
   const money = c => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: S.currency }).format(c / 100);
-
-  // Money set aside in savings (see savings.js). Held out of the monthly budget when that option is on.
-  const savedHeld = () => (window.MetronSavings && window.MetronSavings.held()) || 0;
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -119,6 +116,7 @@
     if (f.error) console.warn('Fixed costs not loaded:', f.error.message);
     S.fixed = f.data || [];
     if (s.data) {
+      S.opening = cents(s.data.opening_balance || 0);
       S.budget = cents(s.data.monthly_budget);
       S.weekly = cents(s.data.weekly_budget || 0);
       S.currency = s.data.currency;
@@ -129,8 +127,8 @@
       $('#alert').value = String(S.alert);
       $('#startday').value = s.data.budget_start_day;
     }
+    await window.MetronSavings?.load();
     sortCategories();
-    if (window.MetronSavings) await window.MetronSavings.load();
     render();
   }
 
@@ -213,44 +211,52 @@
     const wk0 = new Date(day0);
     wk0.setDate(day0.getDate() - ((day0.getDay() + 6) % 7));
     const p0 = periodStart();
-    let spent = 0, income = 0, today = 0, week = 0;
+    const held = window.MetronSavings?.held() || 0, heldAll = window.MetronSavings?.heldAll() || 0;
+    let spent = 0, income = 0, today = 0, week = 0, balance = S.opening - heldAll;
     for (const t of S.tx) {
       const d = new Date(t.transaction_date), c = cents(t.amount);
-      if (t.type === 'income') { if (d >= p0) income += c; continue; }
+      if (t.type === 'income') { balance += c; if (d >= p0) income += c; continue; }
+      balance -= c;
       if (d >= p0) spent += c;
       if (d >= day0) today += c;
       if (d >= wk0) week += c;
     }
-    return { spent, income, today, week };
+    return { spent, income, today, week, balance, held };
   }
 
   function usage() {
-    const { spent, week } = totals();
-    return { m: S.budget ? (spent + savedHeld()) * 100 / S.budget : 0, w: S.weekly ? week * 100 / S.weekly : 0 };
+    const { spent, week, held } = totals();
+    return { m: S.budget ? (spent + held) * 100 / S.budget : 0, w: S.weekly ? week * 100 / S.weekly : 0 };
   }
 
   function crossMsg(b, a) {
-    for (const [k, label] of [['m', 'monthly'], ['w', 'weekly']]) {
-      if (a[k] >= 100 && b[k] < 100) return 'Your ' + label + ' budget is exceeded.';
-      if (a[k] >= S.alert && b[k] < S.alert) return 'Heads up: ' + Math.round(a[k]) + '% of your ' + label + ' budget used.';
+    for (const [k, label] of [['m', 'monthly target'], ['w', 'weekly limit']]) {
+      if (a[k] >= 100 && b[k] < 100) return 'Your ' + label + ' is exceeded.';
+      if (a[k] >= S.alert && b[k] < S.alert) return 'Heads up: ' + Math.round(a[k]) + '% of your ' + label + ' used.';
     }
     return null;
   }
 
   function render() {
-    const { spent, income, today, week } = totals();
-    const held = savedHeld();
-    $('#left').textContent = money(S.budget - spent - held);
+    const { spent, income, today, week, balance, held } = totals();
+    const used = spent + held;
+    $('#bal').textContent = money(balance);
+    $('#bal').className = balance < 0 ? 'neg' : '';
+    const blocked = window.MetronSavings?.heldAll() || 0;
+    $('#blocked').textContent = blocked > 0 ? money(blocked) + ' blocked in savings, not usable' : 'Money you have right now';
+    if (document.activeElement !== $('#opening')) $('#opening').value = (balance / 100).toFixed(2);
+    $('#mcard').hidden = !S.budget;
+    $('#left').textContent = money(S.budget - used);
     $('#today').textContent = money(today);
     $('#week').textContent = money(week);
     $('#spent').textContent = money(spent);
     $('#income').textContent = money(income);
 
     const state = p => p >= 100 ? 'bar over' : p >= S.alert ? 'bar near' : 'bar';
-    const pct = S.budget ? ((spent + held) / S.budget) * 100 : 0;
+    const pct = S.budget ? (used / S.budget) * 100 : 0;
     $('#bar').style.width = Math.min(pct, 100) + '%';
     $('#bar').parentElement.className = state(pct);
-    $('#warn').textContent = S.budget ? Math.round(pct) + '% of monthly budget used' + (held > 0 ? ' (' + money(held) + ' set aside for savings)' : '') : 'Set a monthly budget in Settings.';
+    $('#warn').textContent = Math.round(pct) + '% of monthly target used';
 
     $('#wcard').hidden = !S.weekly;
     if (S.weekly) {
@@ -258,11 +264,11 @@
       $('#wleft').textContent = money(S.weekly - week);
       $('#wbar').style.width = Math.min(wp, 100) + '%';
       $('#wbar').parentElement.className = state(wp);
-      $('#wwarn').textContent = Math.round(wp) + '% of weekly budget used';
+      $('#wwarn').textContent = Math.round(wp) + '% of weekly limit used';
     }
     renderFixed();
-    renderAlerts(spent + held, week);
-    if (window.MetronSavings) window.MetronSavings.render();
+    renderAlerts(used, week);
+    window.MetronSavings?.render();
 
     const rec = $('#recent');
     rec.replaceChildren();
@@ -447,25 +453,25 @@
   $('#settings').addEventListener('submit', async e => {
     e.preventDefault();
     const num = v => v.trim() === '' ? 0 : parseFloat(v.replace(',', '.'));
-    const b = num($('#budget').value), w = num($('#weekly').value);
+    const o = num($('#opening').value), b = num($('#budget').value), w = num($('#weekly').value);
     const d = parseInt($('#startday').value, 10);
-    if (!isFinite(b) || b < 0) return toast('Enter a valid monthly budget.', true);
-    if (!isFinite(w) || w < 0) return toast('Enter a valid weekly budget.', true);
+    // The field holds the balance you have right now; the stored opening balance is whatever makes the ledger match it.
+    const net = S.tx.reduce((a, t) => a + (t.type === 'income' ? 1 : -1) * cents(t.amount), 0);
+    if (!isFinite(o)) return toast('Enter a valid current balance.', true);
+    if (!isFinite(b) || b < 0) return toast('Enter a valid monthly target.', true);
+    if (!isFinite(w) || w < 0) return toast('Enter a valid weekly limit.', true);
     if (!(d >= 1 && d <= 28)) return toast('Start day must be 1 to 28.', true);
     const { error } = await sb.from('user_settings').upsert({
-      user_id: S.user.id, monthly_budget: b, weekly_budget: w, budget_start_day: d, alert_percent: parseInt($('#alert').value, 10) || 80, updated_at: new Date().toISOString()
+      user_id: S.user.id, opening_balance: (cents(o) - net) / 100, monthly_budget: b, weekly_budget: w, budget_start_day: d, alert_percent: parseInt($('#alert').value, 10) || 80, updated_at: new Date().toISOString()
     });
     if (error) return toast('Not saved: ' + error.message, true);
-    toast('Budget saved.');
+    toast('Saved.');
     loadAll();
   });
 
-  // ---------- Settings tabs ----------
+  // Settings tabs: Budget, Savings, Fixed costs.
   document.querySelectorAll('#stabs button').forEach(b => b.addEventListener('click', () => {
-    document.querySelectorAll('#stabs button').forEach(x => {
-      x.classList.toggle('on', x === b);
-      x.setAttribute('aria-selected', x === b);
-    });
+    document.querySelectorAll('#stabs button').forEach(x => x.classList.toggle('on', x === b));
     document.querySelectorAll('.spane').forEach(p => { p.hidden = p.id !== 's-' + b.dataset.s; });
   }));
 
@@ -666,12 +672,12 @@
     const check = (label, limit, used) => {
       if (!limit) return;
       const p = used * 100 / limit;
-      if (p >= 100) add('bad', label + ' budget exceeded by ' + money(used - limit) + '.');
+      if (p >= 100) add('bad', label + ' exceeded by ' + money(used - limit) + '.');
       else if (p >= S.alert) add('', 'You have used ' + Math.round(p) + '% of your ' + label.toLowerCase() +
-        ' budget. ' + money(limit - used) + ' left.');
+        '. ' + money(limit - used) + ' left.');
     };
-    check('Monthly', S.budget, spent);
-    check('Weekly', S.weekly, week);
+    check('Monthly target', S.budget, spent);
+    check('Weekly limit', S.weekly, week);
     S.fixed.forEach(c => {
       const r = nextRenewal(c.renew_day);
       if (r.days <= 3) add('info', c.name + ' renews ' + inDays(r.days) + ' (' + money(cents(c.amount)) + ').');
@@ -724,7 +730,6 @@
     $('#fx-cancel').hidden = false;
     $('#fx-del').hidden = false;
     renderSvc();
-    $('#stabs [data-s="fixed"]').click();
     $('#fx-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -763,7 +768,7 @@
   });
 
   // Read-only bridge for external modules (analytics*.js).
-  window.Metron = { S, $, el, money, cents, dayKey, charts, draw, CATS, periodStart, renderStats, renderHistory, render, toast };
+  window.Metron = { S, $, el, money, cents, dayKey, charts, draw, CATS, periodStart, renderStats, renderHistory, toast, render };
 
   renderSvc();
   renderChips();
