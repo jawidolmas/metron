@@ -1,6 +1,6 @@
 // Metron savings (Settings page).
-// Saved money is never an expense. It is tracked per place (Ziraat card, Vakıfbank card, cash) and,
-// when the option is on, held out of the monthly budget until it is withdrawn.
+// Saved money is never an expense. It is tracked per place (Ziraat card, Vakıfbank card, cash).
+// It is kept out of the balance, but it never counts toward the monthly or weekly limits.
 // Needs the metron.savings table (savings.sql). app.js calls load(), render() and held().
 (() => {
   const M = () => window.Metron;
@@ -134,7 +134,7 @@
         let sp = 0;
         for (const t of S.tx) if (t.type === 'expense' && new Date(t.transaction_date) >= p0) sp += cts(t.amount);
         if (into >= 5) {
-          const left = S.budget - held() - Math.round(sp / into * len);
+          const left = S.budget - Math.round(sp / into * len);
           if (left >= S.budget * 0.05)
             list.push('At your current pace you will end this budget period with about ' + money(left) +
               ' unspent. Moving part of it into savings now keeps it from being spent by accident.');
@@ -206,12 +206,11 @@
       return;
     }
     const { money } = M();
-    const bal = balances(), total = sum(bal), h = held();
+    const bal = balances(), total = sum(bal), ha = heldAll();
     const hero = el('div', 'hero');
     hero.append(el('span', 'lbl', 'Total saved'), el('strong', '', money(total)),
-      el('span', 'warn', h > 0 ? money(h) + ' of this period is set aside and cannot be spent.'
-        : h < 0 ? money(-h) + ' released into this period budget.'
-        : 'Nothing set aside from this period budget yet.'));
+      el('span', 'warn', ha > 0 ? money(ha) + ' is kept out of your balance. It does not count toward your limits.'
+        : 'Nothing set aside yet.'));
     const stats = el('div', 'stats places');
     PLACES.forEach(([k, label]) => {
       const d = el('div');
