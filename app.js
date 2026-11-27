@@ -194,6 +194,7 @@
     kv('Payment method', t.payment_method);
     kv('Need, want or impulse', t.purchase_type ? t.purchase_type[0].toUpperCase() + t.purchase_type.slice(1) : '');
     kv('Reason', t.reason);
+    if (out && t.outside_limits) kv('Limits', 'Not counted');
     const acts = el('div', 'dactions');
     const ed = el('button', 'primary', 'Edit');
     ed.type = 'button';
@@ -217,6 +218,8 @@
       const d = new Date(t.transaction_date), c = cents(t.amount);
       if (t.type === 'income') { balance += c; if (d >= p0) income += c; continue; }
       balance -= c;
+      // One-off costs (dorm fee, shampoo) leave the balance but never count toward the limits.
+      if (t.outside_limits) continue;
       if (d >= p0) spent += c;
       if (d >= day0) today += c;
       if (d >= wk0) week += c;
@@ -351,6 +354,7 @@
     const exp = type === 'expense';
     $('#cats').hidden = !exp;
     $('#ptype-wrap').hidden = !exp;
+    $('#oneoff-wrap').hidden = !exp;
     setSaveLabel();
   }
   document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
@@ -416,6 +420,9 @@
       reason: $('#reason').value.trim() || null,
       purchase_type: exp ? ($('#ptype').value || null) : null
     };
+    // Only send the column when needed, so the app keeps working until the database column exists.
+    if (exp && $('#oneoff').checked) rec.outside_limits = true;
+    else if (S.editId) rec.outside_limits = false;
     if (S.whenTouched && $('#when').value) rec.transaction_date = new Date($('#when').value).toISOString();
     else if (S.editId) rec.transaction_date = new Date().toISOString();
 
@@ -519,6 +526,7 @@
     $('#pay').value = t.payment_method || '';
     $('#ptype').value = t.purchase_type || '';
     $('#reason').value = t.reason || '';
+    $('#oneoff').checked = !!t.outside_limits;
     $('#more').open = !!(t.payment_method || t.purchase_type || t.reason);
     $('#when').value = toLocal(t.transaction_date);
     S.whenTouched = true;
