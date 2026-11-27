@@ -220,3 +220,16 @@ summary { cursor: pointer; padding: 10px 0; color: var(--accent); }
 /* Keep the settings Save button on screen while scrolling the form. */
 #settings > .primary { position: sticky; bottom: calc(74px + env(safe-area-inset-bottom, 0px)); z-index: 5; box-shadow: var(--shadow); }
 @media (min-width: 1100px) { #settings > .primary { bottom: 16px; } }
+/* Outside-limits switch on the Add form */
+.oneoff { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; margin: 0 0 14px;
+  background: var(--card); border-radius: 14px; cursor: pointer; }
+.oneoff[hidden] { display: none; }
+.oneoff-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.oneoff-text b { font-weight: 600; color: var(--ink); }
+.oneoff-text small { color: var(--mute); font-size: 13px; line-height: 1.35; }
+.oneoff input { appearance: none; -webkit-appearance: none; flex: none; width: 51px; min-height: 31px; height: 31px; margin: 0; padding: 0;
+  border-radius: 16px; background: var(--fill); position: relative; transition: background .2s; cursor: pointer; }
+.oneoff input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
+  background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .2s; }
+.oneoff input:checked { background: var(--in); }
+.oneoff input:checked::after { transform: translateX(20px); }
