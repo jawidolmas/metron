@@ -132,7 +132,7 @@
         const p0 = periodStart(), next = new Date(p0.getFullYear(), p0.getMonth() + 1, S.startDay);
         const len = Math.round((next - p0) / DAY), into = Math.round((today0 - day0(p0)) / DAY) + 1;
         let sp = 0;
-        for (const t of S.tx) if (t.type === 'expense' && new Date(t.transaction_date) >= p0) sp += cts(t.amount);
+        for (const t of S.tx) if (t.type === 'expense' && !t.outside_limits && new Date(t.transaction_date) >= p0) sp += cts(t.amount);
         if (into >= 5) {
           const left = S.budget - Math.round(sp / into * len);
           if (left >= S.budget * 0.05)
@@ -151,7 +151,7 @@
           let v = 0;
           for (const t of S.tx) {
             const d = new Date(t.transaction_date);
-            if (t.type === 'expense' && d >= lw && d < wk0) v += cts(t.amount);
+            if (t.type === 'expense' && !t.outside_limits && d >= lw && d < wk0) v += cts(t.amount);
           }
           const gap = S.weekly - v;
           if (gap >= S.weekly * 0.05)
