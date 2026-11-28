@@ -7,10 +7,11 @@
 <title>Metron</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="analytics.css">
 <link rel="stylesheet" href="savings.css">
+<link rel="stylesheet" href="landing.css">
 </head>
 <body>
 
@@ -22,18 +23,174 @@
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
   <symbol id="i-insights" viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M15 8h5v5"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-mark" viewBox="0 0 24 24"><rect x="2.5" y="7" width="19" height="10" rx="2"/><path d="M7 7v4M11 7v6M15 7v4M19 7v6"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15z"/><path d="M10 21h4"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M4 11V9a3 3 0 0 1 3-3h11l-3-3M20 13v2a3 3 0 0 1-3 3H6l3 3"/></symbol>
+  <symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 4v16M6 20h12M5 8h14"/><path d="M5 8l-3 7a3 3 0 0 0 6 0zM19 8l-3 7a3 3 0 0 0 6 0z"/></symbol>
 </svg>
 
 <section id="auth" hidden>
-  <div class="pitch">
-    <p class="eyebrow">Metron</p>
-    <h1>Know where your <em>money</em> goes.</h1>
-    <p class="sub">A calm, private way to record every expense.</p>
+  <div class="ltop">
+    <div class="ltop-in">
+      <a class="lbrand" href="#top" aria-label="Metron, back to top"><svg class="lmark" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-mark"/></svg><span>Metron</span></a>
+      <div class="ltop-r">
+        <a class="llink" href="#features">Features</a>
+        <a class="llink" href="#details">Details</a>
+        <button type="button" class="lbtn line" data-signin>Sign in</button>
+      </div>
+    </div>
   </div>
-  <div id="login">
-    <button id="google" type="button" class="primary">Continue with Google</button>
-    <p id="auth-err" class="err"></p>
+
+  <div class="lhero" id="top">
+    <div class="lhero-in">
+      <div class="lhero-copy">
+        <p class="lkick rv"><span class="lticks" aria-hidden="true"></span>A measure for your money</p>
+        <h1 class="rv">Know where your <span class="lund">money</span> goes.</h1>
+        <p class="lsub rv">Metron records every expense, holds your limits for the week and the month, and keeps your savings out of the way.</p>
+        <div class="lcta rv">
+          <button id="google" type="button" class="lbtn solid">Continue with Google</button>
+          <a href="#features" class="lmore">How it works</a>
+        </div>
+        <p id="auth-err" class="err"></p>
+      </div>
+
+      <div class="lhero-vis rv" aria-hidden="true">
+        <div class="lpanel">
+          <div class="lp-head"><span>Overview</span><span>November</span></div>
+          <div class="lp-bal">
+            <span class="lp-k">Balance</span>
+            <strong>&#8378;6,240.00</strong>
+            <span class="lp-s">&#8378;3,000.00 saved and blocked</span>
+          </div>
+          <div class="lp-row"><span>This month</span><b>&#8378;2,600 <em>of &#8378;5,000</em></b></div>
+          <div class="rule" style="--v:52%"><i></i></div>
+          <div class="lp-row"><span>This week</span><b>&#8378;570 <em>of &#8378;1,500</em></b></div>
+          <div class="rule warm" style="--v:38%"><i></i></div>
+          <ul class="lp-ledger">
+            <li><div><b>Coffee &amp; Drinks</b><small>Today, 09:12</small></div><span>-&#8378;85.00</span></li>
+            <li><div><b>Groceries</b><small>Yesterday, 18:40</small></div><span>-&#8378;312.50</span></li>
+            <li><div><b>Salary</b><small>Monday, 08:00</small></div><span class="in">+&#8378;6,000.00</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <div class="lband" aria-hidden="true"><div class="lband-in"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div></div>
+
+  <section class="lsec" id="features">
+    <div class="lsec-in">
+      <div class="lsec-text rv">
+        <p class="lnum"><b>01</b>Limits</p>
+        <h2>A limit you can see.</h2>
+        <p>Set a weekly and a monthly budget and watch the scale fill as you spend. Large one-off payments can be marked as outside your limits, so a single bill never ruins the week.</p>
+      </div>
+      <div class="lsec-vis rv" aria-hidden="true">
+        <div class="lpanel">
+          <div class="lp-row"><span>Monthly budget</span><b>&#8378;2,600 <em>of &#8378;5,000</em></b></div>
+          <div class="rule" style="--v:52%"><i></i></div>
+          <div class="lp-row"><span>Weekly budget</span><b>&#8378;570 <em>of &#8378;1,500</em></b></div>
+          <div class="rule warm" style="--v:38%"><i></i></div>
+          <ul class="lp-ledger">
+            <li><div><b>Annual insurance</b><small>Outside limits</small></div><span>-&#8378;4,200.00</span></li>
+            <li><div><b>Phone repair</b><small>Outside limits</small></div><span>-&#8378;2,400.00</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lsec rev">
+    <div class="lsec-in">
+      <div class="lsec-text rv">
+        <p class="lnum"><b>02</b>Savings</p>
+        <h2>Set apart, not spent.</h2>
+        <p>Money you put aside lives on another card, so it should never touch your spending. Metron keeps it blocked, out of your balance and out of your limits, until you need it.</p>
+      </div>
+      <div class="lsec-vis rv" aria-hidden="true">
+        <div class="lpanel">
+          <div class="lp-head"><span>Saved and blocked</span></div>
+          <div class="lp-bal"><strong>&#8378;3,500.00</strong></div>
+          <ul class="lp-ledger">
+            <li><div><b>Savings card</b><small>Not part of your balance</small></div><span>&#8378;3,000.00</span></li>
+            <li><div><b>Cash</b><small>Not part of your balance</small></div><span>&#8378;500.00</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lsec">
+    <div class="lsec-in">
+      <div class="lsec-text rv">
+        <p class="lnum"><b>03</b>Analytics</p>
+        <h2>The whole picture.</h2>
+        <p>Weekly trends, spending by category, and a clear split between needs, wants and impulse buys. Plain charts that show where the money really went.</p>
+      </div>
+      <div class="lsec-vis rv" aria-hidden="true">
+        <div class="lpanel">
+          <div class="lp-head"><span>Spending by day</span><span>This week</span></div>
+          <div class="lbars">
+            <i style="--h:38%"></i><i style="--h:62%"></i><i style="--h:45%"></i><i style="--h:80%"></i><i style="--h:55%"></i><i style="--h:30%"></i><i class="on" style="--h:70%"></i>
+          </div>
+          <div class="lbars-x"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+          <ul class="lp-ledger">
+            <li><div><b>Food &amp; Groceries</b></div><span>41%</span></li>
+            <li><div><b>Coffee &amp; Drinks</b></div><span>22%</span></li>
+            <li><div><b>Transportation</b></div><span>14%</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lsec rev">
+    <div class="lsec-in">
+      <div class="lsec-text rv">
+        <p class="lnum"><b>04</b>Export</p>
+        <h2>History, on paper.</h2>
+        <p>Create a clean PDF of your whole history, your latest month, or your latest week. Every transaction is listed with all its details, organized week by week.</p>
+      </div>
+      <div class="lsec-vis rv" aria-hidden="true">
+        <div class="lpanel lsheet">
+          <div class="lp-head"><span>Transaction history</span><span>Latest month</span></div>
+          <div class="lwk"><b>Week 1</b><span>Nov 2 &ndash; Nov 8</span></div>
+          <div class="lrow"><i></i><i></i><i></i><i class="r"></i></div>
+          <div class="lrow"><i></i><i></i><i></i><i class="r"></i></div>
+          <div class="lrow"><i></i><i></i><i></i><i class="r"></i></div>
+          <div class="lwk"><b>Week 2</b><span>Nov 9 &ndash; Nov 15</span></div>
+          <div class="lrow"><i></i><i></i><i></i><i class="r"></i></div>
+          <div class="lrow"><i></i><i></i><i></i><i class="r"></i></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lsec ldet" id="details">
+    <div class="lsec-in">
+      <div class="lsec-text rv">
+        <p class="lnum"><b>05</b>Details</p>
+        <h2>The small things, handled.</h2>
+      </div>
+      <dl class="rv">
+        <div class="dr"><dt>Fixed costs</dt><dd>Add a subscription once. Metron shows what you pay each month and the next renewal date.</dd></div>
+        <div class="dr"><dt>Alerts</dt><dd>Choose when to be warned, anywhere from 50 to 95 percent of your budget.</dd></div>
+        <div class="dr"><dt>Need, want or impulse</dt><dd>Tag a purchase and see which habits cost you the most.</dd></div>
+        <div class="dr"><dt>Date and time</dt><dd>Forgot to log something? Set the exact date and time when you add it.</dd></div>
+        <div class="dr"><dt>Privacy</dt><dd>Sign in with Google. Your records are visible only to your own account.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="lsec lend">
+    <div class="lsec-in">
+      <h2 class="rv">Begin with one expense.</h2>
+      <div class="rv"><button type="button" class="lbtn solid" data-signin>Continue with Google</button></div>
+    </div>
+  </section>
+
+  <div class="lfoot"><div class="lfoot-in"><span>Metron</span><span>&copy; 2026</span></div></div>
 </section>
 
 <main id="app" hidden>
@@ -273,5 +430,6 @@
 <script src="savings.js"></script>
 <script src="app.js"></script>
 <script src="export.js"></script>
+<script src="landing.js"></script>
 </body>
 </html>
