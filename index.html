@@ -102,6 +102,7 @@
         <button type="button" data-s="budget" class="on">Budget</button>
         <button type="button" data-s="savings">Savings</button>
         <button type="button" data-s="fixed">Fixed costs</button>
+        <button type="button" data-s="export">Export</button>
       </div>
 
       <div class="spane" id="s-budget">
@@ -159,6 +160,12 @@
         <button id="fx-cancel" type="button" class="ghost" hidden>Cancel</button>
         <button id="fx-del" type="button" class="danger" hidden>Delete</button>
       </form>
+      </div>
+
+      <div class="spane" id="s-export" hidden>
+        <h2 class="first">Export history</h2>
+        <p class="lbl">Create a PDF of your transactions, organized week by week. It includes every detail of each transaction.</p>
+        <ul id="ex-list" class="list"></ul>
       </div>
     </section>
 
@@ -265,5 +272,6 @@
 <script src="analytics-insights.js"></script>
 <script src="savings.js"></script>
 <script src="app.js"></script>
+<script src="export.js"></script>
 </body>
 </html>
