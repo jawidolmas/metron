@@ -39,14 +39,7 @@ button:disabled { opacity: .4; }
 .danger { width: 100%; min-height: 52px; font-weight: 500; color: var(--out); }
 .ghost { background: none; min-height: 40px; padding: 0 8px; }
 
-/* ---------- Sign in ---------- */
-#auth { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;
-  gap: 32px; padding: 24px; }
-.pitch { text-align: center; max-width: 380px; }
-.eyebrow { margin: 0 0 14px; font-size: 15px; font-weight: 600; color: var(--mute); }
-.pitch h1 { font-size: clamp(36px, 10vw, 52px); font-weight: 700; line-height: 1.06; letter-spacing: -0.045em; margin: 0 0 14px; }
-.sub { margin: 0; color: var(--mute); }
-#login { width: 100%; max-width: 380px; text-align: center; }
+/* ---------- Sign in ---------- (the landing page lives in landing.css) */
 .err { color: var(--out); min-height: 1.4em; font-size: 14px; }
 
 /* ---------- App shell (mobile first) ---------- */
@@ -162,12 +155,6 @@ summary { cursor: pointer; padding: 10px 0; color: var(--accent); }
   :root { padding-top: 0; }
   body { min-height: 0; height: 100vh; overflow: hidden; }
 
-  /* sign in: two panes */
-  #auth { flex-direction: row; justify-content: center; gap: 120px; padding: 48px; }
-  .pitch { text-align: left; max-width: 520px; }
-  .pitch h1 { font-size: 72px; }
-  .sub { font-size: 21px; }
-  #login { background: var(--card); border-radius: 28px; padding: 40px; box-shadow: var(--shadow); max-width: 420px; }
 
   /* app: sidebar | content | add panel */
   main { max-width: none; margin: 0; padding: 0; height: 100vh; display: grid;
