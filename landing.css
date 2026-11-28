@@ -1,0 +1,150 @@
+/* Landing page, shown before sign in.
+   Its own palette (paper in light mode, ink in dark mode). landing.js adds .on-landing to <html>
+   while the page is visible, which also unlocks page scrolling that the desktop app layout turns off. */
+html.on-landing {
+  --l-bg: #f3f1ec; --l-card: #fbfaf7; --l-ink: #151514; --l-mute: #6b6a64; --l-line: rgba(21, 21, 20, .14);
+  --l-tick: rgba(21, 21, 20, .3); --l-accent: #0a64d6; --l-warm: #c77700; --l-in: #1c7a3a;
+  --l-serif: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --l-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  html.on-landing { --l-bg: #0b0b0c; --l-card: #131314; --l-ink: #f1f0ec; --l-mute: #8e8d87; --l-line: rgba(255, 255, 255, .14);
+    --l-tick: rgba(255, 255, 255, .32); --l-accent: #4c9bff; --l-warm: #f0a020; --l-in: #3ddc84; }
+}
+html.on-landing, html.on-landing body { height: auto; min-height: 100vh; overflow: visible; }
+html.on-landing { scroll-padding-top: 64px; }
+html.on-landing body { background: var(--l-bg); color: var(--l-ink); }
+@media (prefers-reduced-motion: no-preference) { html.on-landing { scroll-behavior: smooth; } }
+
+#auth { display: block; padding: 0; overflow-x: clip; }
+#auth[hidden] { display: none; }
+#auth a { color: inherit; }
+
+/* Top bar */
+.ltop { position: sticky; top: 0; z-index: 20; background: var(--l-bg); border-bottom: 1px solid var(--l-line); }
+@supports (background: color-mix(in srgb, red 50%, blue)) { .ltop { background: color-mix(in srgb, var(--l-bg) 92%, transparent); } }
+.ltop-in { max-width: 1180px; margin: 0 auto; height: 60px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; }
+.lbrand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; font-size: 18px; letter-spacing: -0.02em; }
+.lmark { width: 26px; height: 26px; fill: none; stroke: var(--l-accent); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.ltop-r { display: flex; align-items: center; gap: 26px; }
+.llink { text-decoration: none; font-size: 15px; color: var(--l-mute); }
+.llink:hover { color: var(--l-ink); }
+
+/* Buttons: square-ish, not the app's pills */
+.lbtn { min-height: 46px; padding: 0 24px; border-radius: 8px; font-size: 16px; font-weight: 500; letter-spacing: -0.01em; }
+.lbtn.solid { background: var(--l-ink); color: var(--l-bg); }
+.lbtn.line { min-height: 38px; padding: 0 16px; font-size: 15px; background: none; color: var(--l-ink); box-shadow: inset 0 0 0 1px var(--l-tick); }
+
+/* Hero */
+.lhero-in { max-width: 1180px; margin: 0 auto; padding: 76px 24px 88px; display: grid; gap: 56px; align-items: center; }
+.lkick { margin: 0 0 26px; display: flex; align-items: center; gap: 12px; font: 500 12.5px/1 var(--l-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--l-mute); }
+.lticks { width: 34px; height: 10px; flex: none;
+  background: linear-gradient(to right, var(--l-accent) 1.5px, transparent 1.5px) 0 100% / 6px 6px repeat-x,
+              linear-gradient(to right, var(--l-accent) 1.5px, transparent 1.5px) 0 100% / 18px 10px repeat-x; }
+.lhero h1 { margin: 0 0 26px; font: 400 clamp(52px, 8vw, 104px)/.96 var(--l-serif); letter-spacing: -0.025em; }
+.lund { position: relative; display: inline-block; }
+.lund::after { content: ""; position: absolute; left: 0; right: 0; bottom: -12px; height: 9px;
+  background: repeating-linear-gradient(to right, var(--l-accent) 0 2px, transparent 2px 8px); }
+.lsub { margin: 0; max-width: 31em; font-size: clamp(17px, 2vw, 20px); line-height: 1.5; color: var(--l-mute); }
+.lcta { margin-top: 34px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; }
+.lmore { text-decoration: none; font-size: 16px; border-bottom: 1px solid var(--l-tick); padding-bottom: 2px; }
+.lmore:hover { border-color: var(--l-ink); }
+.lhero .err { margin: 12px 0 0; }
+
+/* Panels (product previews) */
+.lpanel { padding: 22px 24px; background: var(--l-card); border: 1px solid var(--l-line); border-radius: 12px;
+  box-shadow: 0 40px 60px -44px rgba(0, 0, 0, .5); }
+.lp-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 14px; font: 500 12px/1 var(--l-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--l-mute); }
+.lp-bal { margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--l-line); }
+.lp-k { display: block; margin-bottom: 2px; font-size: 14px; color: var(--l-mute); }
+.lp-bal strong { display: block; font: 400 clamp(44px, 5.4vw, 60px)/1.05 var(--l-serif); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.lp-s { font-size: 14px; color: var(--l-mute); }
+.lp-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 15px; }
+.lp-row span { color: var(--l-mute); }
+.lp-row b { font-weight: 600; }
+.lp-row em { font-style: normal; font-weight: 400; color: var(--l-mute); }
+.lp-ledger { list-style: none; margin: 14px 0 0; padding: 0; }
+.lp-ledger li { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--l-line); }
+.lp-ledger li > div { flex: 1; min-width: 0; }
+.lp-ledger b { display: block; font-size: 15px; font-weight: 500; line-height: 1.3; }
+.lp-ledger small { display: block; font-size: 13px; color: var(--l-mute); }
+.lp-ledger span { font-weight: 600; font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lp-bal + .lp-ledger { margin-top: 0; }
+.lp-bal + .lp-ledger li:first-child { border-top: 0; padding-top: 0; }
+.lp-ledger span.in { color: var(--l-in); }
+
+/* The scale: tick marks, filled up to a value */
+.rule { position: relative; height: 28px; margin: 8px 0 16px;
+  background: linear-gradient(to right, var(--l-tick) 1px, transparent 1px) 0 100% / 8px 9px repeat-x,
+              linear-gradient(to right, var(--l-tick) 1px, transparent 1px) 0 100% / 40px 18px repeat-x; }
+.rule i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--v); transition: width 1.2s cubic-bezier(.2, .7, .2, 1);
+  background: linear-gradient(to right, var(--l-accent) 2px, transparent 2px) 0 100% / 8px 9px repeat-x,
+              linear-gradient(to right, var(--l-accent) 2px, transparent 2px) 0 100% / 40px 18px repeat-x; }
+.rule i::after { content: ""; position: absolute; right: -1px; top: 0; bottom: 0; width: 2px; background: var(--l-accent); }
+.rule.warm i { background: linear-gradient(to right, var(--l-warm) 2px, transparent 2px) 0 100% / 8px 9px repeat-x,
+              linear-gradient(to right, var(--l-warm) 2px, transparent 2px) 0 100% / 40px 18px repeat-x; }
+.rule.warm i::after { background: var(--l-warm); }
+.js-on .rv .rule i { width: 0; }
+.js-on .rv.in .rule i { width: var(--v); }
+
+/* Divider that looks like the end of a ruler */
+.lband { border-top: 1px solid var(--l-line); height: 58px;
+  background: linear-gradient(to right, var(--l-tick) 1px, transparent 1px) 0 0 / 10px 8px repeat-x,
+              linear-gradient(to right, var(--l-tick) 1px, transparent 1px) 0 0 / 50px 16px repeat-x; }
+.lband-in { max-width: 1180px; margin: 0 auto; padding: 24px 24px 0; display: flex; justify-content: space-between; font: 500 11px/1 var(--l-mono); color: var(--l-mute); }
+
+/* Numbered sections */
+.lsec { border-top: 1px solid var(--l-line); }
+.lband + .lsec { border-top: 0; }
+.lsec-in { max-width: 1180px; margin: 0 auto; padding: 88px 24px; display: grid; gap: 48px; align-items: center; }
+.lnum { margin: 0 0 20px; font: 500 12.5px/1 var(--l-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--l-mute); }
+.lnum b { margin-right: 14px; font-weight: 500; color: var(--l-accent); }
+.lsec h2 { margin: 0 0 20px; font: 400 clamp(38px, 5.2vw, 64px)/1.02 var(--l-serif); letter-spacing: -0.02em; }
+.lsec-text p:not(.lnum) { margin: 0; max-width: 30em; font-size: 18px; line-height: 1.55; color: var(--l-mute); }
+
+.lbars { height: 150px; display: flex; align-items: flex-end; gap: 12px; border-bottom: 1px solid var(--l-tick); }
+.lbars i { flex: 1; height: var(--h); background: var(--l-tick); border-radius: 3px 3px 0 0; opacity: .55; }
+.lbars i.on { background: var(--l-accent); opacity: 1; }
+.lbars-x { display: flex; gap: 12px; margin-top: 8px; font: 500 11px/1 var(--l-mono); color: var(--l-mute); text-align: center; }
+.lbars-x span { flex: 1; }
+
+.lsheet .lwk { display: flex; justify-content: space-between; align-items: baseline; margin: 14px 0 8px; padding: 8px 12px; border-radius: 6px; background: var(--l-line); font-size: 14px; }
+.lsheet .lwk span { color: var(--l-mute); font-size: 13px; }
+.lrow { display: grid; grid-template-columns: 1.2fr 1.6fr 1fr .8fr; gap: 14px; padding: 6px 12px; }
+.lrow i { height: 7px; border-radius: 4px; background: var(--l-line); }
+.lrow i.r { background: var(--l-tick); }
+
+/* Details: a ruled list, not a grid of cards */
+.ldet .lsec-in { align-items: start; }
+.ldet dl { margin: 0; }
+.ldet .dr { display: grid; gap: 6px 28px; padding: 22px 0; border-top: 1px solid var(--l-line); }
+.ldet .dr:last-child { border-bottom: 1px solid var(--l-line); }
+.ldet dt { font-weight: 600; font-size: 17px; }
+.ldet dd { margin: 0; color: var(--l-mute); font-size: 17px; line-height: 1.5; }
+
+.lend .lsec-in { padding: 112px 24px 120px; gap: 32px; justify-items: start; }
+.lend h2 { font-size: clamp(46px, 8vw, 96px); margin: 0; }
+
+.lfoot { border-top: 1px solid var(--l-line); }
+.lfoot-in { max-width: 1180px; margin: 0 auto; padding: 24px 24px calc(28px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; font: 500 12.5px/1 var(--l-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--l-mute); }
+
+@media (min-width: 640px) { .ldet .dr { grid-template-columns: 190px 1fr; } }
+@media (min-width: 960px) {
+  .lhero-in { grid-template-columns: 1.05fr .95fr; gap: 72px; padding: 96px 24px 108px; }
+  .lsec-in { grid-template-columns: 1fr 1fr; gap: 96px; }
+  .lsec.rev .lsec-vis { order: -1; }
+  .ldet .lsec-in { grid-template-columns: 1fr 1.4fr; }
+  .lend .lsec-in { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .llink { display: none; }
+  .lhero-in { padding-top: 48px; padding-bottom: 56px; }
+  .lsec-in { padding: 60px 20px; }
+  .lpanel { padding: 18px; }
+}
+
+/* Gentle reveal. landing.js adds .js-on, so nothing stays hidden if scripts fail. */
+@media (prefers-reduced-motion: no-preference) {
+  .js-on .rv { opacity: 0; transform: translateY(14px); transition: opacity .7s ease, transform .7s ease; }
+  .js-on .rv.in { opacity: 1; transform: none; }
+}
