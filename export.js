@@ -102,6 +102,19 @@
     text('Generated ' + short(now) + ', ' + now.getFullYear(), W - M, 24, 9, 'normal', mute, { align: 'right' });
     text('All amounts in ' + (o.currency || 'TRY'), W - M, 29, 9, 'normal', mute, { align: 'right' });
 
+    // Saved money note: savings are blocked, so they are not part of the balance or the limits.
+    const saved = (o.savings || []).filter(x => x[1] > 0);
+    let top = 36;
+    if (saved.length) {
+      const total = saved.reduce((a, x) => a + x[1], 0);
+      doc.setFillColor(232, 242, 253);
+      doc.roundedRect(M, top, W - 2 * M, 21, 2.5, 2.5, 'F');
+      text(num(total) + ' ' + (o.currency || 'TRY') + ' is saved and blocked', M + 4, top + 6.5, 10.5, 'bold', [0, 90, 190]);
+      text(saved.map(x => num(x[1]) + ' in ' + x[0]).join('     \u00B7     '), M + 4, top + 12.5, 9.5, 'normal', ink);
+      text('This money is not part of your balance and does not count toward your weekly or monthly limits.', M + 4, top + 17.8, 8.5, 'normal', mute);
+      top += 27;
+    }
+
     // Summary boxes
     const net = sum.income - sum.spent;
     const boxes = [
@@ -115,13 +128,13 @@
     boxes.forEach((b, i) => {
       const x = M + i * (bw + gap);
       doc.setFillColor(245, 245, 247);
-      doc.roundedRect(x, 36, bw, 18, 2.5, 2.5, 'F');
-      text(b[0], x + 4, 42.5, 8.5, 'normal', mute);
-      text(b[1], x + 4, 50, 14, 'bold', b[2]);
+      doc.roundedRect(x, top, bw, 18, 2.5, 2.5, 'F');
+      text(b[0], x + 4, top + 6.5, 8.5, 'normal', mute);
+      text(b[1], x + 4, top + 14, 14, 'bold', b[2]);
     });
 
     // Weeks
-    let y = 62;
+    let y = top + 26;
     const bottom = H - 16;
     weeks.forEach(w => {
       if (y + 40 > bottom) { doc.addPage(); y = 16; }
@@ -227,6 +240,14 @@
     return out;
   }
 
+  // What is saved right now, per card. Same numbers as the Savings tab.
+  function savedNow() {
+    const api = window.MetronSavings;
+    if (!api) return [];
+    const b = api.balances();
+    return [['Ziraat card', b.ziraat], ['Vak\u0131fbank card', b.vakif], ['Cash', b.cash]];
+  }
+
   async function deliver(result) {
     const blob = result.doc.output('blob');
     const file = new File([blob], result.filename, { type: 'application/pdf' });
@@ -273,7 +294,8 @@
       const [jsPDF, tx] = await Promise.all([loadTools(), fetchAll()]);
       const result = buildPdf(jsPDF, window.MetronPdfFonts, {
         mode, tx, startDay: M.S.startDay, currency: M.S.currency,
-        name: (document.querySelector('#who') || {}).textContent || ''
+        name: (document.querySelector('#who') || {}).textContent || '',
+        savings: savedNow()
       });
       if (!result) { M.toast('No transactions in this period.', true); return; }
       await deliver(result);
